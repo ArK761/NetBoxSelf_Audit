@@ -451,7 +451,7 @@ def _object_changes(keys: list[str], since, until):
         queryset = queryset.filter(time__gte=since)
     if until is not None:
         queryset = queryset.filter(time__lt=until)
-    return list(queryset.select_related("user").order_by("time")[:MAX_CHANGES]), type_ids
+    return list(queryset.select_related("user").order_by("-time")[:MAX_CHANGES]), type_ids
 
 
 def _url(name: str, pk) -> str:
@@ -469,7 +469,7 @@ def _object_url(key: str, pk) -> str:
 
 
 def collect(settings, since, until, types: list[str] | None = None) -> list[dict]:
-    """Audit entries of the period (all severities), oldest first."""
+    """Audit entries of the period (all severities), newest first."""
     from .models import SelfAuditSystemEvent
 
     lang = language_of(settings)
@@ -538,7 +538,7 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
                 "text": _system_text(event, lang),
             })
 
-    entries.sort(key=lambda entry: entry["when"])
+    entries.sort(key=lambda entry: entry["when"], reverse=True)
     return entries
 
 
