@@ -41,7 +41,15 @@
     {% if selected %}
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <strong>{{ selected_label }} <span class="text-muted small">({{ selected }})</span></strong>
+        <span>
+          <strong>{{ selected_label }} <span class="text-muted small">({{ selected }})</span></strong>
+          <form method="post" class="d-inline ms-2 sa-delete-form" data-confirm="{{ selected_confirm }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_type">
+            <input type="hidden" name="type" value="{{ selected }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">{{ "self.delete"|tr:lang }}</button>
+          </form>
+        </span>
         <span class="small">
           {{ "self.col_watch"|tr:lang }}:
           <a href="#" data-sa-check="1">{{ "self.select_all"|tr:lang }}</a> /
@@ -107,7 +115,15 @@
               <tr>
                 <th style="width:14rem">
                   {{ item.label }}
-                  <div class="small fw-normal"><a href="?type={{ item.key|urlencode }}">{{ "self.edit"|tr:lang }}</a></div>
+                  <div class="small fw-normal d-flex gap-2 align-items-center mt-1">
+                    <a href="?type={{ item.key|urlencode }}">{{ "self.edit"|tr:lang }}</a>
+                    <form method="post" class="d-inline sa-delete-form" data-confirm="{{ item.confirm }}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_type">
+                      <input type="hidden" name="type" value="{{ item.key }}">
+                      <button type="submit" class="btn btn-link btn-sm text-danger p-0">{{ "self.delete"|tr:lang }}</button>
+                    </form>
+                  </div>
                 </th>
                 <td>
                   {% for rule in item.rules %}
@@ -123,44 +139,6 @@
     </div>
     {% endif %}
 
-    <div class="card">
-      <div class="card-header"><strong>{{ "self.options"|tr:lang }}</strong></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="options">
-          <input type="hidden" name="type" value="{{ selected }}">
-          <div class="row g-3 mb-3">
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="sa-language">{{ "form.language"|tr:lang }}</label>
-              <select class="form-select" name="language" id="sa-language">
-                {% for key, label in languages %}
-                  <option value="{{ key }}" {% if key == settings.language %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="sa-datetime">{{ "form.datetime_format"|tr:lang }}</label>
-              <select class="form-select" name="datetime_format" id="sa-datetime">
-                {% for key, label in datetime_formats %}
-                  <option value="{{ key }}" {% if key == settings.datetime_format %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="sa-self-min">{{ "self.min_severity"|tr:lang }}</label>
-              <select class="form-select" name="min_severity" id="sa-self-min">
-                {% for key, label in severities %}
-                  <option value="{{ key }}" {% if key == settings.min_severity %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-          <div class="form-text mb-3">{{ "self.system_help"|tr:lang }}</div>
-          <button type="submit" class="btn btn-outline-primary">{{ "self.save_options"|tr:lang }}</button>
-        </form>
-      </div>
-    </div>
   </div>
 </div>
 <style>
@@ -194,6 +172,12 @@
       if (dirty && !window.confirm(unsavedText)) { typeSelect.value = selectedType; return; }
       dirty = false;
       typeSelect.form.submit();
+    });
+    document.querySelectorAll('.sa-delete-form').forEach((form) => {
+      form.addEventListener('submit', (event) => {
+        if (!window.confirm(form.dataset.confirm)) { event.preventDefault(); return; }
+        dirty = false;
+      });
     });
     window.addEventListener('beforeunload', (event) => {
       if (dirty) { event.preventDefault(); event.returnValue = unsavedText; }

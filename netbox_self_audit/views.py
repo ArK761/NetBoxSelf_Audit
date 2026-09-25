@@ -10,9 +10,9 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from . import mail, rules
-from .common import DATETIME_FORMAT_CHOICES, SEVERITY_RANK, date_format, format_time, severities, severity_label
-from .forms import EmailForm
-from .i18n import LANGUAGES, language_of, tr
+from .common import SEVERITY_RANK, date_format, format_time, severities, severity_label
+from .forms import PERIOD_KEYS, EmailForm, SettingsForm
+from .i18n import language_of, tr
 from .models import SelfAuditRule, SelfAuditSettings
 
 
@@ -21,7 +21,7 @@ def _login(request):
 
 
 # --------------------------------------------------------------------------
-# Watched fields (rules) and options
+# Watched fields (rules)
 # --------------------------------------------------------------------------
 
 def rules_view(request):
@@ -31,17 +31,11 @@ def rules_view(request):
     lang = language_of(settings)
     here = reverse("plugins:netbox_self_audit:rules")
 
-    if request.method == "POST" and request.POST.get("action") == "options":
-        language = request.POST.get("language", "en")
-        settings.language = language if language in dict(LANGUAGES) else "en"
-        datetime_format = request.POST.get("datetime_format", "")
-        if datetime_format in dict(DATETIME_FORMAT_CHOICES):
-            settings.datetime_format = datetime_format
-        severity = request.POST.get("min_severity", "low")
-        settings.min_severity = severity if severity in SEVERITY_RANK else "low"
-        settings.save(update_fields=["language", "datetime_format", "min_severity", "updated_at"])
-        messages.success(request, tr("self.options_saved", language_of(settings)))
-        return redirect(f"{here}?type={quote(request.POST.get('type', ''))}")
+    if request.method == "POST" and request.POST.get("action") == "delete_type":
+        key = request.POST.get("type", "")
+        deleted, _ = SelfAuditRule.objects.filter(object_type=key).delete()
+        messages.success(request, tr("self.deleted", lang, type=rules.type_label(key), count=deleted))
+        return redirect(here)
 
     if request.method == "POST" and request.POST.get("action") == "rules":
         key = request.POST.get("type", "")
@@ -113,6 +107,8 @@ def rules_view(request):
             ],
         })
     overview.sort(key=lambda item: item["label"].lower())
+    for item in overview:
+        item["confirm"] = tr("self.delete_confirm", lang, type=item["label"])
     return render(request, "netbox_self_audit/rules.html", {
         "settings": settings,
         "lang": lang,
@@ -122,9 +118,8 @@ def rules_view(request):
         "rows": rows,
         "watched_types": [(item["key"], item["label"], item["count"]) for item in overview],
         "overview": overview,
+        "selected_confirm": tr("self.delete_confirm", lang, type=rules.type_label(selected)) if selected else "",
         "severities": severities(lang),
-        "languages": LANGUAGES,
-        "datetime_formats": DATETIME_FORMAT_CHOICES,
         "placeholders": ", ".join("{" + name + "}" for name in rules.PLACEHOLDERS),
         "unsaved_text": mark_safe(json.dumps(tr("self.unsaved", lang))),
     })
@@ -134,9 +129,14 @@ def rules_view(request):
 # Audit page
 # --------------------------------------------------------------------------
 
+def _default_period(settings) -> str:
+    period = getattr(settings, "default_period", "today") or "today"
+    return period if period in PERIOD_KEYS else "today"
+
+
 def _period(request, settings):
     """Return (since, until, label) for the selected period (local time)."""
-    period = request.GET.get("period", "today")
+    period = request.GET.get("period") or _default_period(settings)
     today = timezone.localtime().date()
     day_format = date_format(settings)
     lang = language_of(settings)
@@ -225,7 +225,7 @@ def audit_view(request):
     context = {
         "settings": settings,
         "lang": lang,
-        "period": request.GET.get("period", "today"),
+        "period": request.GET.get("period") or _default_period(settings),
         "day": request.GET.get("day", ""),
         "date_from": request.GET.get("from", ""),
         "date_to": request.GET.get("to", ""),
@@ -268,6 +268,25 @@ def audit_view(request):
 
     context.update({"report": report, "subject": subject, "query": request.GET.urlencode()})
     return render(request, "netbox_self_audit/audit.html", context)
+
+
+# --------------------------------------------------------------------------
+# Settings
+# --------------------------------------------------------------------------
+
+def settings_view(request):
+    if not request.user.is_authenticated:
+        return _login(request)
+    instance = SelfAuditSettings.load()
+    if request.method == "POST":
+        form = SettingsForm(request.POST, instance=instance)
+        if form.is_valid():
+            saved = form.save()
+            messages.success(request, tr("set.saved", language_of(saved)))
+            return redirect("plugins:netbox_self_audit:settings")
+    else:
+        form = SettingsForm(instance=instance)
+    return render(request, "netbox_self_audit/settings.html", {"form": form, "lang": language_of(instance)})
 
 
 # --------------------------------------------------------------------------

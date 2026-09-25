@@ -524,7 +524,7 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
                 "text": message_for(rule, values, lang),
             })
 
-    if not types or "netbox.system" in types:
+    if getattr(settings, "track_system", True) and (not types or "netbox.system" in types):
         events = SelfAuditSystemEvent.objects.all()
         if since is not None:
             events = events.filter(time__gte=since)
@@ -581,11 +581,13 @@ def render_report(settings, report: dict) -> tuple[str, str, str]:
     lang = language_of(settings)
     subject = report_subject(settings, report)
     title = tr("self.title", lang)
+    header = (getattr(settings, "report_header", "") or "").strip()
     period = tr("report.period", lang, period=report["period_label"])
     columns = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("self.col_object", lang), tr("field.change", lang)]
-    text = [title, period, ""]
+    text = ([header] if header else []) + [title, period, ""]
     html = [
         '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#212529">',
+        f'<div style="font-size:16px;font-weight:bold;margin:0 0 4px">{escape(header)}</div>' if header else "",
         f'<h2 style="margin:0 0 4px">{escape(title)}</h2>',
         f'<p style="margin:0 0 16px;color:#6c757d">{escape(period)}</p>',
     ]
@@ -671,7 +673,8 @@ def send_report(
     if pdf_password is None:
         pdf_password = getattr(settings, "audit_pdf_password", "") or ""
     subject, text, html = render_report(settings, report)
-    message = EmailMultiAlternatives(subject=subject, body=text, from_email=from_address(settings), to=to)
+    header = (getattr(settings, "report_header", "") or "").strip()
+    message = EmailMultiAlternatives(subject=f"{header}: {subject}" if header else subject, body=text, from_email=from_address(settings), to=to)
     message.attach_alternative(html, "text/html")
     if attach_pdf:
         from .pdf import build_pdf

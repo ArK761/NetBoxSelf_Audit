@@ -3,8 +3,8 @@ import re
 from django import forms
 from django.core.validators import validate_email
 
-from .common import frequencies, smtp_securities, weekdays
-from .i18n import language_of, tr
+from .common import DATETIME_FORMAT_CHOICES, frequencies, severities, smtp_securities, weekdays
+from .i18n import LANGUAGES, language_of, tr
 from .models import SelfAuditSettings
 
 
@@ -178,3 +178,58 @@ class EmailForm(forms.ModelForm):
             instance.save()
         return instance
 
+
+
+PERIOD_KEYS = ("today", "yesterday", "last7")
+
+
+class SettingsForm(forms.ModelForm):
+    """Basic settings: language, formats, report defaults."""
+
+    language = forms.ChoiceField(choices=LANGUAGES)
+    datetime_format = forms.ChoiceField(choices=DATETIME_FORMAT_CHOICES)
+    min_severity = forms.ChoiceField(choices=severities())
+    default_period = forms.ChoiceField(choices=())
+    report_header = forms.CharField(required=False, max_length=200)
+    track_system = forms.BooleanField(required=False)
+
+    class Meta:
+        model = SelfAuditSettings
+        fields = ("language", "datetime_format", "min_severity", "default_period", "report_header", "track_system")
+
+    LABELS = {
+        "language": ("form.language", None),
+        "datetime_format": ("form.datetime_format", None),
+        "min_severity": ("form.min_severity", "form.min_severity_help"),
+        "default_period": ("form.default_period", None),
+        "report_header": ("form.report_header", "form.report_header_help"),
+        "track_system": ("form.track_system", "form.track_system_help"),
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang = language_of(self.instance)
+        for name, (label, help_text) in self.LABELS.items():
+            self.fields[name].label = tr(label, lang)
+            self.fields[name].help_text = tr(help_text, lang) if help_text else ""
+        self.fields["min_severity"].choices = severities(lang)
+        self.fields["default_period"].choices = [(key, tr(f"ui.{key}", lang)) for key in PERIOD_KEYS]
+        self.fields["report_header"].widget.attrs["placeholder"] = tr("form.report_header_placeholder", lang)
+        for field in self.fields.values():
+            widget = field.widget
+            if getattr(widget, "input_type", "") == "checkbox":
+                widget.attrs.setdefault("class", "form-check-input")
+                widget.attrs.setdefault("role", "switch")
+            elif isinstance(widget, forms.Select):
+                widget.attrs.setdefault("class", "form-select")
+            else:
+                widget.attrs.setdefault("class", "form-control")
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if "track_system" in self.changed_data and instance.track_system:
+            # Start again from the current state: changes made while tracking was off are not reported.
+            instance.system_snapshot = {}
+        if commit:
+            instance.save()
+        return instance
