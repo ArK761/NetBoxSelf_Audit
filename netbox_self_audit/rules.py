@@ -631,25 +631,6 @@ def html_document(settings, report: dict) -> str:
     )
 
 
-def report_csv(settings, report: dict) -> str:
-    import csv
-    import io
-
-    lang = language_of(settings)
-    buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
-    writer.writerow([
-        tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("self.col_type", lang),
-        tr("self.col_object", lang), tr("self.col_field", lang), tr("field.change", lang), tr("self.col_added", lang), tr("self.col_removed", lang),
-    ])
-    for entry in report["entries"]:
-        writer.writerow([
-            _format_time(entry["when"], settings), entry["severity_label"], entry["user"], entry["object_type"], entry["object"],
-            entry["field_label"], entry["text"], "\n".join(entry["added"]), "\n".join(entry["removed"]),
-        ])
-    return "﻿" + buffer.getvalue()
-
-
 def send_report(
     settings, since, until, label: str, to: list[str] | None = None, force: bool = False,
     attach_pdf: bool | None = None, pdf_password: str | None = None, types: list[str] | None = None,

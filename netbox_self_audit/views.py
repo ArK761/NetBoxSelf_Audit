@@ -60,6 +60,8 @@ def rules_view(request):
             SelfAuditRule.objects.update_or_create(object_type=key, field=field, defaults=values)
             watched += 1
         messages.success(request, tr("self.rules_saved", lang, type=rules.type_label(key), count=watched))
+        if request.POST.get("next") == "overview":
+            return redirect(here)
         return redirect(f"{here}?type={quote(key)}")
 
     selected = request.GET.get("type", "")
@@ -116,12 +118,14 @@ def rules_view(request):
         "selected": selected,
         "selected_label": rules.type_label(selected) if selected else "",
         "rows": rows,
-        "watched_types": [(item["key"], item["label"], item["count"]) for item in overview],
         "overview": overview,
         "selected_confirm": tr("self.delete_confirm", lang, type=rules.type_label(selected)) if selected else "",
         "severities": severities(lang),
         "placeholders": ", ".join("{" + name + "}" for name in rules.PLACEHOLDERS),
         "unsaved_text": mark_safe(json.dumps(tr("self.unsaved", lang))),
+        "ask_save": mark_safe(json.dumps(tr("self.ask_save", lang))),
+        "ask_discard": mark_safe(json.dumps(tr("self.ask_discard", lang))),
+        "overview_url": here,
     })
 
 
@@ -251,10 +255,6 @@ def audit_view(request):
         entry["when_display"] = format_time(entry["when"], settings)
     export = request.GET.get("export")
     stamp = timezone.localtime().strftime("%Y-%m-%d_%H-%M")
-    if export == "csv":
-        response = HttpResponse(rules.report_csv(settings, report), content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="netbox-self-audit_{stamp}.csv"'
-        return response
     if export == "pdf":
         from .pdf import build_pdf
 
