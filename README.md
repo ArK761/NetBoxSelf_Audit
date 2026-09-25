@@ -1,7 +1,7 @@
 # NetBoxSelf Audit
 
 NetBox plugin that audits changes made in NetBox itself: you choose which object types and fields are watched,
-give each a severity and optionally your own log message, and get a report (web page, PDF, CSV, HTML, e-mail)
+give each a severity and optionally your own log message, and get a report (web page, PDF, HTML, e-mail)
 of who changed what.
 
 Requires NetBox 4.7.
@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.2
 ```
 
 Enable the plugin in `configuration.py`:
@@ -37,7 +37,7 @@ systemctl restart netbox netbox-rq
   *Object created* and *Object deleted* can be watched too. Nothing is watched until you choose it.
 - Log message placeholders: `{user}`, `{object}`, `{object_type}`, `{field}`, `{old}`, `{new}`, `{added}`,
   `{removed}`, `{changes}`, `{action}`. An empty message uses the default text in the selected language.
-- An overview shows all watched object types and fields; **Delete** removes all watched fields of an object type.
+- An overview shows all watched object types as green buttons (click to edit) with their fields; **Delete** removes all watched fields of an object type. The editing screen has a Back button that asks whether to save unsaved changes.
 
 ### Settings (NetBoxSelf Audit → Settings)
 
@@ -54,7 +54,7 @@ systemctl restart netbox netbox-rq
 - Table: time, severity, user, object (link to the object), the change and a link to the NetBox changelog entry.
 - Lists (e.g. a multi-object custom field with 10 PCs, tags) and multi-line text show only the added (+) and
   removed (−) items / lines.
-- Download as PDF, CSV (Excel) or HTML, or send by e-mail (recipients chosen in a dialog, optional PDF attachment,
+- Download as PDF or HTML, or send by e-mail (recipients chosen in a dialog, optional PDF attachment,
   optionally password protected).
 
 ### NetBox version and plugins
