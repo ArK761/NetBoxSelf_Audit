@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-self-audit"
+version = "1.0.0"
+description = "NetBox plugin: audit of changes made in NetBox itself (watched fields, severities, PDF and e-mail reports)"
+requires-python = ">=3.10"
+dependencies = ["reportlab>=4.0,<6"]
+
+[project.entry-points."netbox_plugins"]
+netbox_self_audit = "netbox_self_audit:NetBoxSelfAuditConfig"
+
+[tool.setuptools.packages.find]
+include = ["netbox_self_audit*"]
+
+[tool.setuptools.package-data]
+netbox_self_audit = ["templates/**/*.html", "fonts/*.ttf", "fonts/*.txt"]
