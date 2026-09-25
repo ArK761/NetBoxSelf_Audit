@@ -51,7 +51,9 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None)
     badge = ParagraphStyle("badge", parent=base, fontName=FONT_BOLD, textColor=colors.white, alignment=TA_CENTER)
 
     generated = timezone.localtime().strftime(getattr(settings, "datetime_format", "%d.%m.%Y %H:%M:%S"))
-    story = [
+    report_header = (getattr(settings, "report_header", "") or "").strip()
+    story = [Paragraph(escape(report_header), header)] if report_header else []
+    story += [
         Paragraph(escape(tr("self.title", lang)), title),
         Paragraph(escape(tr("report.period", lang, period=report["period_label"]) + "    ·    " + tr("report.generated", lang, time=generated)), small),
         Spacer(1, 3 * mm),
@@ -62,7 +64,7 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None)
         story.append(Paragraph(escape(tr("self.no_changes", lang)), base))
     else:
         page_width = landscape(A4)[0] - 24 * mm
-        widths = [32 * mm, 22 * mm, 30 * mm, 60 * mm]
+        widths = [32 * mm, 26 * mm, 30 * mm, 56 * mm]
         widths.append(page_width - sum(widths))
         rows = [[
             Paragraph(escape(label), header)

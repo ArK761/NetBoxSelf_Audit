@@ -1,0 +1,23 @@
+{% extends 'base/layout.html' %}
+{% load self_audit_tags %}
+
+{% block title %}{{ "set.title"|tr:lang }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-xl-8">
+    <form method="post">
+      {% csrf_token %}
+      <div class="card mb-3">
+        <div class="card-header"><h5 class="card-title mb-0">{{ "set.title"|tr:lang }}</h5></div>
+        <div class="card-body">
+          {% for field in form %}
+            {% include "netbox_self_audit/inc/email_field.html" %}
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">{{ "ui.save"|tr:lang }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

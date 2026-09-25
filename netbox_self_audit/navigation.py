@@ -20,12 +20,13 @@ menu_label = lazy(_menu_label, str)
 
 audit_item = PluginMenuItem(link="plugins:netbox_self_audit:audit", link_text=menu_label("menu.audit"))
 rules_item = PluginMenuItem(link="plugins:netbox_self_audit:rules", link_text=menu_label("menu.rules"))
+settings_item = PluginMenuItem(link="plugins:netbox_self_audit:settings", link_text=menu_label("menu.settings"))
 email_item = PluginMenuItem(link="plugins:netbox_self_audit:email", link_text=menu_label("menu.email"))
 
 menu = PluginMenu(
     label="NetBoxSelf Audit",
-    groups=(("NetBoxSelf Audit", (audit_item, rules_item, email_item)),),
+    groups=(("NetBoxSelf Audit", (audit_item, rules_item, settings_item, email_item)),),
     icon_class="mdi mdi-shield-search",
 )
 
-menu_items = (audit_item, rules_item, email_item)
+menu_items = (audit_item, rules_item, settings_item, email_item)

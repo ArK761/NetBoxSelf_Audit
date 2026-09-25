@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
 ```
 
 Enable the plugin in `configuration.py`:
@@ -37,8 +37,15 @@ systemctl restart netbox netbox-rq
   *Object created* and *Object deleted* can be watched too. Nothing is watched until you choose it.
 - Log message placeholders: `{user}`, `{object}`, `{object_type}`, `{field}`, `{old}`, `{new}`, `{added}`,
   `{removed}`, `{changes}`, `{action}`. An empty message uses the default text in the selected language.
-- An overview shows all watched object types and fields.
-- Options: language (English, Slovak, Czech, German), date/time format, minimum severity in the report.
+- An overview shows all watched object types and fields; **Delete** removes all watched fields of an object type.
+
+### Settings (NetBoxSelf Audit → Settings)
+
+- Language (English, Slovak, Czech, German) and date/time format.
+- Minimum severity in the report.
+- Default period on the Audit page (today, yesterday, last 7 days).
+- Report header: text at the top of the report, PDF and e-mail and at the start of the e-mail subject.
+- Record NetBox version and plugin changes (on by default).
 
 ### Audit (NetBoxSelf Audit → Audit)
 
@@ -52,9 +59,9 @@ systemctl restart netbox netbox-rq
 
 ### NetBox version and plugins
 
-Changes of the NetBox version and of the installed plugins (installed, removed, updated) are always recorded as
-Critical. The check runs every minute in the NetBox background worker (`netbox-rq`); the first run only stores the
-current state.
+Changes of the NetBox version and of the installed plugins (installed, removed, updated) are recorded as Critical
+(can be switched off in Settings). The check runs every minute in the NetBox background worker (`netbox-rq`); the
+first run only stores the current state.
 
 ### E-mail (NetBoxSelf Audit → E-mail)
 

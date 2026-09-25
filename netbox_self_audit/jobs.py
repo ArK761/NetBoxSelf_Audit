@@ -20,12 +20,13 @@ class SelfAuditJob(JobRunner):
         from . import mail, rules
 
         settings = SelfAuditSettings.load()
-        try:
-            recorded = rules.check_system(settings)
-            if recorded:
-                logger.info("NetBox version / plugin change recorded (%s events)", recorded)
-        except Exception:
-            logger.exception("NetBox version / plugin check failed")
+        if settings.track_system:
+            try:
+                recorded = rules.check_system(settings)
+                if recorded:
+                    logger.info("NetBox version / plugin change recorded (%s events)", recorded)
+            except Exception:
+                logger.exception("NetBox version / plugin check failed")
 
         if not settings.audit_email_enabled or not mail.recipients(settings):
             return
