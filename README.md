@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.2
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.3
 ```
 
 Enable the plugin in `configuration.py`:
@@ -51,7 +51,7 @@ systemctl restart netbox netbox-rq
 
 - Period: today, yesterday, a chosen day, date range, last 7 days, all.
 - Filter by object types and minimum severity.
-- Table: time, severity, user, object (link to the object), the change and a link to the NetBox changelog entry.
+- Table (newest first, also in the PDF and e-mail): time, severity, user, object (link to the object), the change and a link to the NetBox changelog entry.
 - Lists (e.g. a multi-object custom field with 10 PCs, tags) and multi-line text show only the added (+) and
   removed (−) items / lines.
 - Download as PDF or HTML, or send by e-mail (recipients chosen in a dialog, optional PDF attachment,
