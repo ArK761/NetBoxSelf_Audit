@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.7
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
 ```
 
 Enable the plugin in `configuration.py`:
