@@ -709,7 +709,9 @@ def render_report(settings, report: dict, view: str | None = None) -> tuple[str,
             for obj in group["objects"]:
                 name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
                 text.append(f"-- {name}")
-                html.append(f'<h4 style="margin:12px 0 4px">{escape(name)}</h4>')
+                html.append('<div style="border:1px solid #adb5bd;border-radius:6px;margin:10px 0;overflow:hidden">')
+                html.append(f'<div style="background:#f1f3f5;border-bottom:1px solid #adb5bd;padding:6px 10px;font-weight:bold">{escape(name)}</div>')
+                html.append('<div style="padding:6px 10px">')
                 html.append('<table style="border-collapse:collapse;width:100%" cellpadding="6"><tr>')
                 html.extend(head.format(escape(column)) for column in columns)
                 html.append("</tr>")
@@ -720,7 +722,7 @@ def render_report(settings, report: dict, view: str | None = None) -> tuple[str,
                     cells = (escape(when), _badge(entry["severity"], entry["severity_label"]), escape(entry["user"] or "-"),
                              escape(entry["text"]) + _detail_html(entry))
                     html.append("<tr>" + "".join(cell.format(value) for value in cells) + "</tr>")
-                html.append("</table>")
+                html.append("</table></div></div>")
             text.append("")
         html.append("</div>")
         return subject, "\n".join(text), "".join(html)
@@ -749,9 +751,23 @@ def html_document(settings, report: dict, view: str | None = None) -> str:
     )
 
 
+def _pdf_mail_body(settings, report: dict, subject: str) -> tuple[str, str]:
+    """Short e-mail body when the audit itself is sent as a PDF attachment."""
+    lang = language_of(settings)
+    header = (getattr(settings, "report_header", "") or "").strip()
+    lines = [header] if header else []
+    lines += [tr("self.mail_pdf_body", lang, period=report["period_label"]), "", subject]
+    html = ['<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#212529">']
+    if header:
+        html.append(f'<div style="font-size:16px;font-weight:bold;margin:0 0 8px">{escape(header)}</div>')
+    html.append(f"<p>{escape(tr('self.mail_pdf_body', lang, period=report['period_label']))}</p>")
+    html.append(f"<p><strong>{escape(subject)}</strong></p></div>")
+    return "\n".join(lines), "".join(html)
+
+
 def send_report(
     settings, since, until, label: str, to: list[str] | None = None, force: bool = False,
-    attach_pdf: bool | None = None, pdf_password: str | None = None, types: list[str] | None = None,
+    delivery: str | None = None, pdf_password: str | None = None, types: list[str] | None = None,
     min_severity: str | None = None, view: str | None = None,
 ) -> dict:
     """E-mail the NetBox Self audit. Returns {"sent", "total", "reason", "reason_en"}."""
@@ -767,15 +783,17 @@ def send_report(
     report = build_report(settings, since, until, label, types, min_severity)
     if not report["total"] and not force and not getattr(settings, "audit_send_empty", False):
         return {"sent": False, "total": 0, "reason": tr("mail.no_changes", lang), "reason_en": tr("mail.no_changes", "en")}
-    if attach_pdf is None:
-        attach_pdf = getattr(settings, "audit_email_attach_pdf", True)
+    if delivery not in ("body", "pdf"):
+        delivery = getattr(settings, "audit_email_delivery", "pdf") or "pdf"
     if pdf_password is None:
         pdf_password = getattr(settings, "audit_pdf_password", "") or ""
     subject, text, html = render_report(settings, report, view)
     header = (getattr(settings, "report_header", "") or "").strip()
+    if delivery == "pdf":
+        text, html = _pdf_mail_body(settings, report, subject)
     message = EmailMultiAlternatives(subject=f"{header}: {subject}" if header else subject, body=text, from_email=from_address(settings), to=to)
     message.attach_alternative(html, "text/html")
-    if attach_pdf:
+    if delivery == "pdf":
         from .pdf import build_pdf
 
         stamp = timezone.localtime().strftime("%Y-%m-%d")

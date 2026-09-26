@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.5
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.6
 ```
 
 Enable the plugin in `configuration.py`:
@@ -36,7 +36,8 @@ systemctl restart netbox netbox-rq
 - Tick the fields to watch, set a severity (Low / Medium / High / Critical) and optionally the log message.
   *Object created* and *Object deleted* can be watched too. Nothing is watched until you choose it.
 - Log message placeholders: `{user}`, `{object}`, `{object_type}`, `{field}`, `{old}`, `{new}`, `{added}`,
-  `{removed}`, `{changes}`, `{action}`. An empty message uses the default text in the selected language.
+  `{removed}`, `{changes}`, `{action}`. An empty message uses the default text in the selected language
+  (the user is not repeated in the default text; it has its own column).
   Ready-made templates can be picked next to each message, placeholder buttons insert at the cursor and a preview
   shows the resulting text.
 - An overview shows all watched object types as green buttons (click to edit) with their fields; **Delete** removes all watched fields of an object type. The editing screen has a Back button that asks whether to save unsaved changes.
@@ -54,7 +55,8 @@ systemctl restart netbox netbox-rq
 - Period: today, yesterday, a chosen day, date range, last 7 days, all.
 - Filter by object types and minimum severity.
 - Two views (default chosen in Settings, also used for the PDF and the automatic e-mail):
-  - **By object** (tree): object type → object → its changes (oldest first), with the highest severity of each branch;
+  - **By object** (tree): object type → object → its changes (oldest first), with the highest severity of each branch
+    (in the PDF and e-mail each object is in its own frame);
     expand / collapse all; deleted objects are marked.
   - **By time**: one table, newest first.
 - Each change shows time, severity, user, the change and a link to the NetBox changelog entry.
@@ -62,7 +64,8 @@ systemctl restart netbox netbox-rq
   information that it was deleted. **Changes**: only watched fields.
 - Lists (e.g. a multi-object custom field with 10 PCs, tags) and multi-line text show only the added (+) and
   removed (−) items / lines.
-- Download as PDF or HTML, or send by e-mail (recipients chosen in a dialog, optional PDF attachment,
+- Download as PDF or HTML, or send by e-mail (recipients chosen in a dialog; the audit goes either in the e-mail body
+  or as a PDF attachment,
   optionally password protected).
 
 ### NetBox version and plugins
@@ -79,7 +82,8 @@ first run only stores the current state.
 - Test e-mail (uses the saved settings, recipients chosen in a dialog).
 - Automatic audit e-mail: daily (previous day), weekly (last 7 days, on a chosen weekday) or monthly
   (previous month, on the 1st) at a chosen time; optionally also when there were no changes.
-- The audit is always in the e-mail body; PDF attachment optional, optionally password protected (128-bit;
+- The audit goes either in the e-mail body or as a PDF attachment (then the e-mail has only a short summary); the PDF
+  can be password protected (128-bit;
   printing and copying allowed, editing blocked).
 - Results of the automatic e-mail are written to the NetBox log (`netbox.plugins.netbox_self_audit`).
 

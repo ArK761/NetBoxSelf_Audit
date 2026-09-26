@@ -213,10 +213,10 @@ def audit_view(request):
     back = f"{request.path}?{request.GET.urlencode()}"
 
     if request.method == "POST" and request.POST.get("action") == "send_email":
-        attach_pdf = request.POST.get("attach_pdf") == "on"
+        delivery = "body" if request.POST.get("delivery") == "body" else "pdf"
         protect = request.POST.get("pdf_protect") == "on"
         password = (request.POST.get("pdf_password") or settings.audit_pdf_password) if protect else ""
-        if attach_pdf and protect and not password:
+        if delivery == "pdf" and protect and not password:
             messages.error(request, tr("form.err_pdf_password", lang))
             return redirect(back)
         to = _chosen_recipients(request, settings, lang)
@@ -224,7 +224,7 @@ def audit_view(request):
             return redirect(back)
         try:
             result = rules.send_report(
-                settings, since, until, label, to=to, force=True, attach_pdf=attach_pdf, pdf_password=password,
+                settings, since, until, label, to=to, force=True, delivery=delivery, pdf_password=password,
                 types=types or None, min_severity=min_severity, view=view,
             )
             if result["sent"]:
@@ -254,7 +254,7 @@ def audit_view(request):
         "recipients": ", ".join(mail.recipients(settings)),
         "recipient_list": mail.recipients(settings),
         "pdf_password_set": bool(settings.audit_pdf_password),
-        "default_attach_pdf": settings.audit_email_attach_pdf,
+        "default_delivery": settings.audit_email_delivery,
         "view": view,
     }
     if not context["generated"]:

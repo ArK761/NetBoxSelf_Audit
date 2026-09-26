@@ -63,7 +63,7 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
         Spacer(1, 2 * mm),
     ]
     group_title = ParagraphStyle("group", parent=base, fontName=FONT_BOLD, fontSize=12, leading=15, spaceBefore=8, spaceAfter=2)
-    object_title = ParagraphStyle("object", parent=base, fontName=FONT_BOLD, fontSize=10, leading=13, spaceBefore=5, spaceAfter=2)
+    object_title = ParagraphStyle("object", parent=base, fontName=FONT_BOLD, fontSize=10.5, leading=13)
     table_style = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9ecef")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -81,14 +81,14 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
             change += "".join(f'<br/><font color="#dc3545">− {escape(item)}</font>' for item in entry["removed"])
         return Paragraph(change, base)
 
-    def table(entries, with_object):
+    def table(entries, with_object, width=None):
         labels = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang)]
         widths = [32 * mm, 26 * mm, 30 * mm]
         if with_object:
             labels.append(tr("self.col_object", lang))
             widths.append(56 * mm)
         labels.append(tr("field.change", lang))
-        widths.append(page_width - sum(widths))
+        widths.append((width or page_width) - sum(widths))
         rows = [[Paragraph(escape(label), header) for label in labels]]
         styles = list(table_style)
         for index, entry in enumerate(entries, start=1):
@@ -113,8 +113,19 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
             story.append(Paragraph(escape(f"{group['label']} ({tr('self.tree_changes', lang, count=group['count'])})"), group_title))
             for obj in group["objects"]:
                 name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
-                story.append(Paragraph(escape(name), object_title))
-                story.append(table(obj["entries"], with_object=False))
+                inner = table(obj["entries"], with_object=False, width=page_width - 8 * mm)
+                frame = Table([[Paragraph(escape(name), object_title)], [inner]], colWidths=[page_width], splitByRow=1)
+                frame.setStyle(TableStyle([
+                    ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#adb5bd")),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f3f5")),
+                    ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#adb5bd")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+                ]))
+                story.append(frame)
+                story.append(Spacer(1, 3 * mm))
     else:
         story.append(table(report["entries"], with_object=True))
 
