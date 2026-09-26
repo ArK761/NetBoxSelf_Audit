@@ -1,10 +1,16 @@
 from django.utils.functional import lazy
+from django.utils.html import escape
+from django.utils.safestring import SafeString, mark_safe
 
-from netbox.plugins import PluginMenu, PluginMenuButton, PluginMenuItem
+from netbox.plugins import PluginMenu, PluginMenuItem
 
 
-def _menu_label(key: str) -> str:
-    """Menu label in the language chosen in the plugin (evaluated at render time)."""
+def _menu_label(key: str, icon: str, color: str) -> SafeString:
+    """Coloured menu label with an icon, in the language chosen in the plugin (evaluated at render time).
+
+    NetBox renders the menu text with {{ item.link_text }}, so a SafeString is shown as HTML; only our fixed
+    markup is marked safe, the translated text itself is escaped.
+    """
     from .i18n import language_of, tr
 
     try:
@@ -13,20 +19,14 @@ def _menu_label(key: str) -> str:
         lang = language_of(SelfAuditSettings.objects.first())
     except Exception:  # database not ready (migrations, startup)
         lang = "en"
-    return tr(key, lang)
+    return mark_safe(f'<span class="text-{color}"><i class="{icon} me-1" aria-hidden="true"></i>{escape(tr(key, lang))}</span>')
 
 
-menu_label = lazy(_menu_label, str)
+menu_label = lazy(_menu_label, SafeString)
 
 
 def _item(name: str, label: str, icon: str, color: str) -> PluginMenuItem:
-    """Menu item with a small coloured icon button (NetBox does not allow coloured menu text)."""
-    link = f"plugins:netbox_self_audit:{name}"
-    return PluginMenuItem(
-        link=link,
-        link_text=menu_label(label),
-        buttons=(PluginMenuButton(link=link, title=menu_label(label), icon_class=icon, color=color),),
-    )
+    return PluginMenuItem(link=f"plugins:netbox_self_audit:{name}", link_text=menu_label(label, icon, color))
 
 
 audit_item = _item("audit", "menu.audit", "mdi mdi-file-search-outline", "blue")
