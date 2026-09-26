@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from . import mail, rules
-from .common import SEVERITY_RANK, date_format, format_time, severities, severity_label
+from .common import SEVERITY_RANK, date_format, format_time, seconds, severities, severity_label
 from .forms import PERIOD_KEYS, EmailForm, SettingsForm
 from .i18n import language_of, tr
 from .models import SelfAuditRule, SelfAuditSettings
@@ -228,7 +228,11 @@ def audit_view(request):
                 types=types or None, min_severity=min_severity, view=view,
             )
             if result["sent"]:
-                messages.success(request, tr("self.sent", lang, period=label, recipients=", ".join(to)))
+                messages.success(
+                    request,
+                    tr("self.sent", lang, period=label, recipients=", ".join(to))
+                    + " " + tr("self.took_sentence", lang, time=seconds(result.get("duration", 0), lang)),
+                )
             else:
                 messages.warning(request, result["reason"])
         except Exception as exc:
@@ -261,6 +265,7 @@ def audit_view(request):
         return render(request, "netbox_self_audit/audit.html", context)
 
     report = rules.build_report(settings, since, until, label, types or None, min_severity)
+    context["duration"] = seconds(report["duration"], lang)
     subject, _text, _html = rules.render_report(settings, report, view)
     for entry in report["entries"]:
         entry["when_display"] = format_time(entry["when"], settings)
