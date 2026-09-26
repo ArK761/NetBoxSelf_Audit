@@ -11,9 +11,11 @@ Requires NetBox 4.7.
 - Watched fields per NetBox object type (incl. custom fields), severity and log message per field
 - Audit by object (tree) or by time, PDF / HTML export, e-mail (in the body or as PDF), scheduled e-mail
 - NetBox version and plugin changes recorded automatically
-- **Internal self-check:** the background check reports every minute (heartbeat); when it stops, the plugin pages
-  show a warning and `/plugins/self-audit/health/` returns `ERROR` (HTTP 503) instead of `OK` – ready for LibreNMS
-  or any other monitoring. An interrupted background run is cleared automatically when `netbox-rq` starts.
+- **Internal self-check:** the background check reports every minute (heartbeat); when it has not run for 5 or
+  10 minutes (Settings), the plugin pages show a warning and `/plugins/self-audit/health/` returns `ERROR`
+  (HTTP 503) instead of `OK` – ready for LibreNMS or any other monitoring; the address can be switched off in
+  Settings. A **Check now** button on the Audit page sends a test job to `netbox-rq` and waits for the answer.
+  An interrupted background run is cleared automatically when `netbox-rq` starts.
 - Shows how long each audit took to generate and send
 - English, Slovak, Czech, German
 
