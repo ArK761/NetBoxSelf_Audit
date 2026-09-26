@@ -192,10 +192,19 @@ class SettingsForm(forms.ModelForm):
     default_period = forms.ChoiceField(choices=())
     report_header = forms.CharField(required=False, max_length=200)
     track_system = forms.BooleanField(required=False)
+    severity_netbox = forms.ChoiceField(choices=severities())
+    severity_plugin_added = forms.ChoiceField(choices=severities())
+    severity_plugin_removed = forms.ChoiceField(choices=severities())
+    severity_plugin_version = forms.ChoiceField(choices=severities())
+
+    SYSTEM_SEVERITIES = ("severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version")
 
     class Meta:
         model = SelfAuditSettings
-        fields = ("language", "datetime_format", "min_severity", "default_period", "report_header", "track_system")
+        fields = (
+            "language", "datetime_format", "min_severity", "default_period", "report_header", "track_system",
+            "severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version",
+        )
 
     LABELS = {
         "language": ("form.language", None),
@@ -204,6 +213,10 @@ class SettingsForm(forms.ModelForm):
         "default_period": ("form.default_period", None),
         "report_header": ("form.report_header", "form.report_header_help"),
         "track_system": ("form.track_system", "form.track_system_help"),
+        "severity_netbox": ("form.sev_netbox", None),
+        "severity_plugin_added": ("form.sev_plugin_added", None),
+        "severity_plugin_removed": ("form.sev_plugin_removed", None),
+        "severity_plugin_version": ("form.sev_plugin_version", None),
     }
 
     def __init__(self, *args, **kwargs):
@@ -213,6 +226,8 @@ class SettingsForm(forms.ModelForm):
             self.fields[name].label = tr(label, lang)
             self.fields[name].help_text = tr(help_text, lang) if help_text else ""
         self.fields["min_severity"].choices = severities(lang)
+        for name in self.SYSTEM_SEVERITIES:
+            self.fields[name].choices = severities(lang)
         self.fields["default_period"].choices = [(key, tr(f"ui.{key}", lang)) for key in PERIOD_KEYS]
         self.fields["report_header"].widget.attrs["placeholder"] = tr("form.report_header_placeholder", lang)
         for field in self.fields.values():

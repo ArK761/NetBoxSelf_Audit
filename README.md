@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.3
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.4
 ```
 
 Enable the plugin in `configuration.py`:
@@ -45,7 +45,7 @@ systemctl restart netbox netbox-rq
 - Minimum severity in the report.
 - Default period on the Audit page (today, yesterday, last 7 days).
 - Report header: text at the top of the report, PDF and e-mail and at the start of the e-mail subject.
-- Record NetBox version and plugin changes (on by default).
+- Record NetBox version and plugin changes (on by default) and the severity of each kind of change.
 
 ### Audit (NetBoxSelf Audit → Audit)
 
@@ -59,8 +59,9 @@ systemctl restart netbox netbox-rq
 
 ### NetBox version and plugins
 
-Changes of the NetBox version and of the installed plugins (installed, removed, updated) are recorded as Critical
-(can be switched off in Settings). The check runs every minute in the NetBox background worker (`netbox-rq`); the
+Changes of the NetBox version and of the installed plugins (installed, removed, updated) are recorded (can be
+switched off in Settings). The severity of each kind is set in Settings; defaults: NetBox version High, plugin
+installed Critical, plugin removed Critical, plugin updated Medium. The check runs every minute in the NetBox background worker (`netbox-rq`); the
 first run only stores the current state.
 
 ### E-mail (NetBoxSelf Audit → E-mail)
