@@ -1,0 +1,7 @@
+{% load self_audit_tags %}
+{% if health_ok is not None and not health_ok %}
+<div class="alert alert-danger mb-3" role="alert">
+  <strong>{{ "health.title"|tr:lang }}</strong> {{ health_message }}
+  <div class="small mt-1">{{ "health.hint"|tr:lang }} <code>sudo systemctl status netbox-rq</code></div>
+</div>
+{% endif %}

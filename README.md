@@ -103,8 +103,21 @@ first run only stores the current state.
   printing and copying allowed, editing blocked).
 - Results of the automatic e-mail are written to the NetBox log (`netbox.plugins.netbox_self_audit`).
 - The Audit page, the PDF and the "sent" message show how long the audit took to generate / send.
-- If a background run is interrupted (e.g. netbox-rq restarted while it was running), it is cleared automatically
-  when netbox-rq starts, so the schedule never stays blocked.
+
+### Monitoring (heartbeat)
+
+The background check (NetBox background worker `netbox-rq`) reports every minute. If it has not run for longer than
+the set time (Settings, default 10 minutes):
+
+- all plugin pages show a red warning;
+- `http://<netbox>/plugins/self-audit/health/` returns HTTP **503** with `ERROR` and the reason, otherwise HTTP
+  **200** with `OK` and the time of the last run. The address needs no login and shows only this status.
+
+Add it to LibreNMS as an HTTP service (Services → Add service → type `http`, parameters e.g.
+`-u /plugins/self-audit/health/ -s OK`) or to any other monitoring. Monitoring can be switched off in Settings.
+
+If a background run is interrupted (e.g. `netbox-rq` restarted while it was running), it is cleared automatically
+when `netbox-rq` starts, so the schedule does not stay blocked.
 
 ### Data and limits
 

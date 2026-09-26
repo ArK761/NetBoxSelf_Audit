@@ -4,6 +4,7 @@
 {% block title %}{{ "set.title"|tr:lang }}{% endblock %}
 
 {% block content %}
+{% include "netbox_self_audit/inc/health_banner.html" %}
 <div class="row">
   <div class="col-12 col-xl-8">
     <form method="post">
@@ -22,11 +23,15 @@
 </div>
 <script>
   (() => {
-    const box = document.getElementById('id_track_system');
-    if (!box) return;
-    const update = () => document.querySelectorAll('.sa-syssev').forEach((el) => { el.style.display = box.checked ? '' : 'none'; });
-    box.addEventListener('change', update);
-    update();
+    const toggle = (id, selector) => {
+      const box = document.getElementById(id);
+      if (!box) return;
+      const update = () => document.querySelectorAll(selector).forEach((el) => { el.style.display = box.checked ? '' : 'none'; });
+      box.addEventListener('change', update);
+      update();
+    };
+    toggle('id_track_system', '.sa-syssev');
+    toggle('id_watchdog_enabled', '.sa-watchdog');
   })();
 </script>
 {% endblock %}

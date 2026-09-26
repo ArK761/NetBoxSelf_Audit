@@ -4,6 +4,7 @@
 {% block title %}{% if selected %}{{ selected_label }} – {% endif %}{{ "self.settings_title"|tr:lang }}{% endblock %}
 
 {% block content %}
+{% include "netbox_self_audit/inc/health_banner.html" %}
 <div class="row">
   <div class="col-12 col-xl-9">
     {% if selected %}
