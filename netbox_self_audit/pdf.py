@@ -40,7 +40,7 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     from xml.sax.saxutils import escape
     from django.utils import timezone
 
@@ -64,13 +64,6 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
     ]
     group_title = ParagraphStyle("group", parent=base, fontName=FONT_BOLD, fontSize=12, leading=15, spaceBefore=8, spaceAfter=2)
     object_title = ParagraphStyle("object", parent=base, fontName=FONT_BOLD, fontSize=10.5, leading=13)
-    table_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9ecef")),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#dee2e6")),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]
     page_width = landscape(A4)[0] - 24 * mm
 
     def change_cell(entry):
@@ -81,17 +74,38 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
             change += "".join(f'<br/><font color="#dc3545">− {escape(item)}</font>' for item in entry["removed"])
         return Paragraph(change, base)
 
-    def table(entries, with_object, width=None):
+    def table(entries, with_object, title=None):
+        """Changes as a table; with a title the table is an object frame whose name row repeats after a page break."""
         labels = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang)]
         widths = [32 * mm, 26 * mm, 30 * mm]
         if with_object:
             labels.append(tr("self.col_object", lang))
             widths.append(56 * mm)
         labels.append(tr("field.change", lang))
-        widths.append((width or page_width) - sum(widths))
-        rows = [[Paragraph(escape(label), header) for label in labels]]
-        styles = list(table_style)
-        for index, entry in enumerate(entries, start=1):
+        widths.append(page_width - sum(widths))
+        rows = []
+        first = 0
+        if title:
+            rows.append([Paragraph(escape(title), object_title)] + [""] * (len(labels) - 1))
+            first = 1
+        rows.append([Paragraph(escape(label), header) for label in labels])
+        styles = [
+            ("BACKGROUND", (0, first), (-1, first), colors.HexColor("#e9ecef")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LINEBELOW", (0, first), (-1, -1), 0.4, colors.HexColor("#dee2e6")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]
+        if title:
+            styles += [
+                ("SPAN", (0, 0), (-1, 0)),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f3f5")),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.6, colors.HexColor("#adb5bd")),
+                ("TOPPADDING", (0, 0), (-1, 0), 2 * mm),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 2 * mm),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#adb5bd")),
+            ]
+        for index, entry in enumerate(entries, start=first + 1):
             row = [
                 Paragraph(escape(_format_time(entry["when"], settings)), base),
                 Paragraph(escape(entry["severity_label"]), badge),
@@ -102,7 +116,7 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
             row.append(change_cell(entry))
             rows.append(row)
             styles.append(("BACKGROUND", (1, index), (1, index), colors.HexColor(SEVERITY_COLOR[entry["severity"]])))
-        result = Table(rows, colWidths=widths, repeatRows=1)
+        result = Table(rows, colWidths=widths, repeatRows=first + 1)
         result.setStyle(TableStyle(styles))
         return result
 
@@ -110,21 +124,14 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
         story.append(Paragraph(escape(tr("self.no_changes", lang)), base))
     elif view_of(settings, view) == "object":
         for group in group_tree(report["entries"]):
-            story.append(Paragraph(escape(f"{group['label']} ({tr('self.tree_changes', lang, count=group['count'])})"), group_title))
-            for obj in group["objects"]:
+            heading = Paragraph(escape(f"{group['label']} ({tr('self.tree_changes', lang, count=group['count'])})"), group_title)
+            for position, obj in enumerate(group["objects"]):
                 name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
-                inner = table(obj["entries"], with_object=False, width=page_width - 8 * mm)
-                frame = Table([[Paragraph(escape(name), object_title)], [inner]], colWidths=[page_width], splitByRow=1)
-                frame.setStyle(TableStyle([
-                    ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#adb5bd")),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f3f5")),
-                    ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#adb5bd")),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-                    ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
-                ]))
-                story.append(frame)
+                # An object stays on one page (moved to the next page when it does not fit); only an object
+                # longer than a whole page is split, and its name row is repeated on the next page.
+                block = [heading] if position == 0 else []
+                block.append(table(obj["entries"], with_object=False, title=name))
+                story.append(KeepTogether(block))
                 story.append(Spacer(1, 3 * mm))
     else:
         story.append(table(report["entries"], with_object=True))
