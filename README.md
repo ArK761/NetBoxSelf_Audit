@@ -79,7 +79,7 @@ duration), automatic e-mails not sent and why, test e-mails, "Check now", interr
 downloads and changes of settings and watched fields – with the user (or "system") and the result. Filter by event,
 result and date. Entries are kept for 30 / 90 / 180 / 365 days (Settings) and older ones are deleted automatically.
 
-The menu items have coloured icon buttons: Audit blue, Watched fields orange, Log red, Settings green, E-mail cyan.
+The menu items are coloured with an icon: Audit blue, Watched fields orange, Log red, Settings green, E-mail cyan.
 
 ### Settings (NetBoxSelf Audit → Settings)
 
