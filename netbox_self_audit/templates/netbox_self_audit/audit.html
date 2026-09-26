@@ -183,10 +183,14 @@
         <p class="mb-3"><strong>{{ period_label }}</strong></p>
         {% include "netbox_self_audit/inc/recipients_pick.html" with prefix="sa-send" %}
         <hr>
-        <div class="form-text mb-2">{{ "ui.body_hint"|tr:lang }}</div>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" name="attach_pdf" id="sa-attach-pdf" {% if default_attach_pdf %}checked{% endif %}>
-          <label class="form-check-label" for="sa-attach-pdf">{{ "ui.attach_pdf"|tr:lang }}</label>
+        <div class="fw-bold mb-1">{{ "form.delivery"|tr:lang }}</div>
+        <div class="form-check">
+          <input class="form-check-input sa-delivery" type="radio" name="delivery" value="body" id="sa-delivery-body" {% if default_delivery == "body" %}checked{% endif %}>
+          <label class="form-check-label" for="sa-delivery-body">{{ "form.delivery_body"|tr:lang }}</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input sa-delivery" type="radio" name="delivery" value="pdf" id="sa-delivery-pdf" {% if default_delivery != "body" %}checked{% endif %}>
+          <label class="form-check-label" for="sa-delivery-pdf">{{ "form.delivery_pdf"|tr:lang }}</label>
         </div>
         <div class="form-check form-switch mt-2 sa-pdf-only">
           <input class="form-check-input" type="checkbox" role="switch" name="pdf_protect" id="sa-pdf-protect" {% if pdf_password_set %}checked{% endif %}>
@@ -230,13 +234,13 @@
     };
     period.addEventListener('change', update);
     update();
-    const attach = document.getElementById('sa-attach-pdf');
+    const attach = document.getElementById('sa-delivery-pdf');
     const protect = document.getElementById('sa-pdf-protect');
     const updatePdf = () => {
       document.querySelectorAll('.sa-pdf-only').forEach((el) => { el.style.display = attach && attach.checked ? '' : 'none'; });
       document.querySelectorAll('.sa-pdf-pass').forEach((el) => { el.style.display = attach && attach.checked && protect && protect.checked ? '' : 'none'; });
     };
-    attach?.addEventListener('change', updatePdf);
+    document.querySelectorAll('.sa-delivery').forEach((radio) => radio.addEventListener('change', updatePdf));
     protect?.addEventListener('change', updatePdf);
     updatePdf();
   })();

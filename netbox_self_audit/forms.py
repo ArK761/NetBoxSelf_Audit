@@ -3,7 +3,7 @@ import re
 from django import forms
 from django.core.validators import validate_email
 
-from .common import DATETIME_FORMAT_CHOICES, frequencies, severities, smtp_securities, weekdays
+from .common import DATETIME_FORMAT_CHOICES, delivery_choices, frequencies, severities, smtp_securities, weekdays
 from .i18n import LANGUAGES, language_of, tr
 from .models import SelfAuditSettings
 
@@ -34,7 +34,7 @@ class EmailForm(forms.ModelForm):
     audit_email_weekday = forms.TypedChoiceField(choices=weekdays(), coerce=int)
     audit_email_time = forms.CharField(widget=forms.TimeInput(attrs={"type": "time"}))
     audit_send_empty = forms.BooleanField(required=False)
-    audit_email_attach_pdf = forms.BooleanField(required=False)
+    audit_email_delivery = forms.ChoiceField(choices=())
     audit_pdf_protect = forms.BooleanField(required=False)
     audit_pdf_password_input = forms.CharField(
         required=False,
@@ -59,7 +59,7 @@ class EmailForm(forms.ModelForm):
             "audit_email_weekday",
             "audit_email_time",
             "audit_send_empty",
-            "audit_email_attach_pdf",
+            "audit_email_delivery",
         )
 
     LABELS = {
@@ -79,7 +79,7 @@ class EmailForm(forms.ModelForm):
         "audit_email_weekday": ("form.weekday", None),
         "audit_email_time": ("form.time", "form.time_help"),
         "audit_send_empty": ("form.send_empty", "form.send_empty_help"),
-        "audit_email_attach_pdf": ("form.attach_pdf", None),
+        "audit_email_delivery": ("form.delivery", "form.delivery_help"),
         "audit_pdf_protect": ("form.pdf_protect", None),
         "audit_pdf_password_input": ("form.pdf_password", "form.pdf_password_help"),
     }
@@ -120,12 +120,13 @@ class EmailForm(forms.ModelForm):
                 "audit_email_weekday",
                 "audit_email_time",
                 "audit_send_empty",
-                "audit_email_attach_pdf",
+                "audit_email_delivery",
                 "audit_pdf_protect",
                 "audit_pdf_password_input",
             ]
         )
         self.fields["audit_pdf_protect"].initial = bool(self.instance.audit_pdf_password)
+        self.fields["audit_email_delivery"].choices = delivery_choices(lang)
 
     def clean_audit_email_recipients(self):
         value = self.cleaned_data.get("audit_email_recipients", "") or ""
@@ -156,7 +157,10 @@ class EmailForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("audit_pdf_protect") and not cleaned.get("audit_pdf_password_input") and not self.instance.audit_pdf_password:
+        if cleaned.get("audit_email_delivery") != "pdf":
+            # PDF options are hidden when the audit goes in the e-mail body: keep the saved PDF password.
+            cleaned["audit_pdf_protect"] = bool(self.instance.audit_pdf_password)
+        elif cleaned.get("audit_pdf_protect") and not cleaned.get("audit_pdf_password_input") and not self.instance.audit_pdf_password:
             self.add_error("audit_pdf_password_input", tr("form.err_pdf_password", self.lang))
         if cleaned.get("smtp_auth") and not (cleaned.get("smtp_username") or "").strip():
             self.add_error("smtp_username", tr("form.err_username", self.lang))

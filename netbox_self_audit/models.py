@@ -34,7 +34,8 @@ class SelfAuditSettings(models.Model):
     audit_email_weekday = models.PositiveSmallIntegerField(default=0)
     audit_email_time = models.CharField(max_length=5, default="07:00")
     audit_send_empty = models.BooleanField(default=False)
-    audit_email_attach_pdf = models.BooleanField(default=True)
+    audit_email_attach_pdf = models.BooleanField(default=True)  # replaced by audit_email_delivery (1.0.6)
+    audit_email_delivery = models.CharField(max_length=8, default="pdf")  # "body" or "pdf"
     audit_pdf_password = models.TextField(blank=True, default="")
     last_sent = models.DateTimeField(null=True, blank=True)
     # NetBox version and plugins seen at the last check

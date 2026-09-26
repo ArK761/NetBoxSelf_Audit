@@ -33,7 +33,7 @@
             {% endif %}
           {% endfor %}
           {% if pdf_password_set %}
-            <div class="form-text sa-pdfpass">{{ "ui.pdf_password_is_set"|tr:lang }}</div>
+            <div class="form-text sa-pdfpass sa-pdfonly">{{ "ui.pdf_password_is_set"|tr:lang }}</div>
           {% endif %}
           {% if last_sent %}
             <div class="form-text">{% trf "ui.last_sent" lang time=last_sent %}</div>
@@ -84,7 +84,16 @@
       update();
     };
     toggle('id_smtp_auth', '.sa-auth');
-    toggle('id_audit_pdf_protect', '.sa-pdfpass');
+    const delivery = document.getElementById('id_audit_email_delivery');
+    const protect = document.getElementById('id_audit_pdf_protect');
+    const updatePdf = () => {
+      const pdf = !delivery || delivery.value === 'pdf';
+      document.querySelectorAll('.sa-pdfonly').forEach((el) => { el.style.display = pdf ? '' : 'none'; });
+      document.querySelectorAll('.sa-pdfpass').forEach((el) => { el.style.display = pdf && protect && protect.checked ? '' : 'none'; });
+    };
+    delivery?.addEventListener('change', updatePdf);
+    protect?.addEventListener('change', updatePdf);
+    updatePdf();
     const frequency = document.getElementById('id_audit_email_frequency');
     if (frequency) {
       const update = () => document.querySelectorAll('.sa-weekday').forEach((el) => { el.style.display = frequency.value === 'weekly' ? '' : 'none'; });

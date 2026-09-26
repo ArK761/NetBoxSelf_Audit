@@ -34,6 +34,10 @@ def weekdays(lang: str = "en") -> list[tuple[int, str]]:
     return [(day, tr(f"weekday.{day}", lang)) for day in range(7)]
 
 
+def delivery_choices(lang: str = "en") -> list[tuple[str, str]]:
+    return [("body", tr("form.delivery_body", lang)), ("pdf", tr("form.delivery_pdf", lang))]
+
+
 def smtp_securities(lang: str = "en") -> list[tuple[str, str]]:
     return [(key, tr(f"security.{key}", lang)) for key in ("none", "ssl", "starttls")]
 
