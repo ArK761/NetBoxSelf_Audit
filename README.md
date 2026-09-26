@@ -8,17 +8,33 @@ Requires NetBox 4.7.
 
 ## Installation / upgrade
 
+1. Install the plugin into the NetBox virtual environment:
+
 ```bash
+source /opt/netbox/venv/bin/activate
 pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
 ```
 
-Enable the plugin in `configuration.py`:
+2. **Required:** enable the plugin in `/opt/netbox/netbox/netbox/configuration.py` (add it to the existing list):
 
 ```python
-PLUGINS = ["netbox_self_audit"]
+PLUGINS = [
+    # ... other plugins ...
+    "netbox_self_audit",
+]
 ```
 
-Run the migration and restart NetBox and its background worker:
+3. **Recommended:** add the plugin to `/opt/netbox/local_requirements.txt`, so that NetBox's `upgrade.sh` installs it
+   again after a NetBox upgrade (otherwise NetBox does not start after the upgrade, because the plugin is enabled in
+   `configuration.py` but no longer installed):
+
+```
+netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+```
+
+The plugin is not on PyPI, so the line must contain the GitHub address, not only the name.
+
+4. Run the migration and restart NetBox and its background worker:
 
 ```bash
 cd /opt/netbox/netbox
