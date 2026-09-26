@@ -4,6 +4,7 @@ from django import forms
 from django.core.validators import validate_email
 
 from .common import DATETIME_FORMAT_CHOICES, delivery_choices, frequencies, severities, smtp_securities, weekdays
+from .health import WATCHDOG_MINUTES
 from .i18n import LANGUAGES, language_of, tr
 from .models import SelfAuditSettings
 
@@ -198,7 +199,8 @@ class SettingsForm(forms.ModelForm):
     report_header = forms.CharField(required=False, max_length=200)
     track_system = forms.BooleanField(required=False)
     watchdog_enabled = forms.BooleanField(required=False)
-    watchdog_minutes = forms.IntegerField(min_value=1, max_value=1440)
+    watchdog_minutes = forms.TypedChoiceField(choices=(), coerce=int)
+    health_endpoint_enabled = forms.BooleanField(required=False)
     severity_netbox = forms.ChoiceField(choices=severities())
     severity_plugin_added = forms.ChoiceField(choices=severities())
     severity_plugin_removed = forms.ChoiceField(choices=severities())
@@ -211,7 +213,7 @@ class SettingsForm(forms.ModelForm):
         fields = (
             "language", "datetime_format", "min_severity", "default_period", "group_by", "report_header", "track_system",
             "severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version",
-            "watchdog_enabled", "watchdog_minutes",
+            "watchdog_enabled", "watchdog_minutes", "health_endpoint_enabled",
         )
 
     LABELS = {
@@ -227,7 +229,8 @@ class SettingsForm(forms.ModelForm):
         "severity_plugin_removed": ("form.sev_plugin_removed", None),
         "severity_plugin_version": ("form.sev_plugin_version", None),
         "watchdog_enabled": ("form.watchdog_enabled", "form.watchdog_enabled_help"),
-        "watchdog_minutes": ("form.watchdog_minutes", None),
+        "watchdog_minutes": ("form.watchdog_minutes", "form.watchdog_minutes_help"),
+        "health_endpoint_enabled": ("form.health_endpoint", "form.health_endpoint_help"),
     }
 
     def __init__(self, *args, **kwargs):
@@ -237,6 +240,9 @@ class SettingsForm(forms.ModelForm):
             self.fields[name].label = tr(label, lang)
             self.fields[name].help_text = tr(help_text, lang) if help_text else ""
         self.fields["min_severity"].choices = severities(lang)
+        self.fields["watchdog_minutes"].choices = [(value, tr("form.minutes", lang, count=value)) for value in WATCHDOG_MINUTES]
+        if self.instance.watchdog_minutes not in WATCHDOG_MINUTES:
+            self.initial["watchdog_minutes"] = 10
         for name in self.SYSTEM_SEVERITIES:
             self.fields[name].choices = severities(lang)
         self.fields["default_period"].choices = [(key, tr(f"ui.{key}", lang)) for key in PERIOD_KEYS]
