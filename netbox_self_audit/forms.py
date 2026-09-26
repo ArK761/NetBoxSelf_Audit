@@ -4,6 +4,7 @@ from django import forms
 from django.core.validators import validate_email
 
 from .common import DATETIME_FORMAT_CHOICES, delivery_choices, frequencies, severities, smtp_securities, weekdays
+from .activity import RETENTION_DAYS
 from .health import WATCHDOG_MINUTES
 from .i18n import LANGUAGES, language_of, tr
 from .models import SelfAuditSettings
@@ -201,6 +202,7 @@ class SettingsForm(forms.ModelForm):
     watchdog_enabled = forms.BooleanField(required=False)
     watchdog_minutes = forms.TypedChoiceField(choices=(), coerce=int)
     health_endpoint_enabled = forms.BooleanField(required=False)
+    log_retention_days = forms.TypedChoiceField(choices=(), coerce=int)
     severity_netbox = forms.ChoiceField(choices=severities())
     severity_plugin_added = forms.ChoiceField(choices=severities())
     severity_plugin_removed = forms.ChoiceField(choices=severities())
@@ -213,7 +215,7 @@ class SettingsForm(forms.ModelForm):
         fields = (
             "language", "datetime_format", "min_severity", "default_period", "group_by", "report_header", "track_system",
             "severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version",
-            "watchdog_enabled", "watchdog_minutes", "health_endpoint_enabled",
+            "watchdog_enabled", "watchdog_minutes", "health_endpoint_enabled", "log_retention_days",
         )
 
     LABELS = {
@@ -231,6 +233,7 @@ class SettingsForm(forms.ModelForm):
         "watchdog_enabled": ("form.watchdog_enabled", "form.watchdog_enabled_help"),
         "watchdog_minutes": ("form.watchdog_minutes", "form.watchdog_minutes_help"),
         "health_endpoint_enabled": ("form.health_endpoint", "form.health_endpoint_help"),
+        "log_retention_days": ("form.log_retention", "form.log_retention_help"),
     }
 
     def __init__(self, *args, **kwargs):
@@ -240,6 +243,7 @@ class SettingsForm(forms.ModelForm):
             self.fields[name].label = tr(label, lang)
             self.fields[name].help_text = tr(help_text, lang) if help_text else ""
         self.fields["min_severity"].choices = severities(lang)
+        self.fields["log_retention_days"].choices = [(value, tr("form.days", lang, count=value)) for value in RETENTION_DAYS]
         self.fields["watchdog_minutes"].choices = [(value, tr("form.minutes", lang, count=value)) for value in WATCHDOG_MINUTES]
         if self.instance.watchdog_minutes not in WATCHDOG_MINUTES:
             self.initial["watchdog_minutes"] = 10

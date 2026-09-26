@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
-from . import mail, rules
+from . import activity, mail, rules
 from .common import SEVERITY_RANK, date_format, format_time, seconds, severities, severity_label
 from .health import ECHO_TIMEOUT, check_worker_now, heartbeat_status
 from .forms import PERIOD_KEYS, EmailForm, SettingsForm
@@ -57,6 +57,7 @@ def rules_view(request):
         key = request.POST.get("type", "")
         deleted, _ = SelfAuditRule.objects.filter(object_type=key).delete()
         messages.success(request, tr("self.deleted", lang, type=rules.type_label(key), count=deleted))
+        activity.record("rules_deleted", user=request.user, type=rules.type_label(key), count=deleted)
         return redirect(here)
 
     if request.method == "POST" and request.POST.get("action") == "rules":
@@ -82,6 +83,7 @@ def rules_view(request):
             SelfAuditRule.objects.update_or_create(object_type=key, field=field, defaults=values)
             watched += 1
         messages.success(request, tr("self.rules_saved", lang, type=rules.type_label(key), count=watched))
+        activity.record("rules_saved", user=request.user, type=rules.type_label(key), count=watched)
         if request.POST.get("next") == "overview":
             return redirect(here)
         return redirect(f"{here}?type={quote(key)}")
@@ -239,13 +241,16 @@ def audit_view(request):
             answered, took = check_worker_now(settings, user=request.user)
         except Exception as exc:
             messages.error(request, tr("check.failed", lang, error=exc))
+            activity.record("check_failed", ok=False, user=request.user, error=exc)
             return redirect(back)
         settings.refresh_from_db()
         _ok, last = heartbeat_status(settings)
         if answered:
             messages.success(request, tr("check.ok", lang, time=seconds(took, lang)) + " " + last)
+            activity.record("check_ok", user=request.user, seconds=round(took, 2))
         else:
             messages.error(request, tr("check.no_answer", lang, seconds=ECHO_TIMEOUT) + " " + last)
+            activity.record("check_failed", ok=False, user=request.user, error=f"no answer within {ECHO_TIMEOUT} s")
         return redirect(back)
 
     if request.method == "POST" and request.POST.get("action") == "send_email":
@@ -269,10 +274,15 @@ def audit_view(request):
                     tr("self.sent", lang, period=label, recipients=", ".join(to))
                     + " " + tr("self.took_sentence", lang, time=seconds(result.get("duration", 0), lang)),
                 )
+                activity.record(
+                    "send_manual", user=request.user, recipients=", ".join(to), period=label, delivery=delivery,
+                    total=result["total"], seconds=round(result.get("duration", 0), 2),
+                )
             else:
                 messages.warning(request, result["reason"])
         except Exception as exc:
             messages.error(request, tr("ui.audit_send_failed", lang, error=exc))
+            activity.record("send_failed", ok=False, user=request.user, recipients=", ".join(to), period=label, error=exc)
         return redirect(back)
 
     watched = sorted({rule.object_type for rule in SelfAuditRule.objects.filter(enabled=True)})
@@ -307,6 +317,8 @@ def audit_view(request):
         entry["when_display"] = format_time(entry["when"], settings)
     export = request.GET.get("export")
     stamp = timezone.localtime().strftime("%Y-%m-%d_%H-%M")
+    if export in ("pdf", "html"):
+        activity.record("export", user=request.user, format=export.upper(), period=label, total=report["total"])
     if export == "pdf":
         from .pdf import build_pdf
 
@@ -329,6 +341,58 @@ def audit_view(request):
 
 
 # --------------------------------------------------------------------------
+# Activity log
+# --------------------------------------------------------------------------
+
+def log_view(request):
+    if not request.user.is_authenticated:
+        return _login(request)
+    from django.core.paginator import Paginator
+
+    from .models import SelfAuditLog
+
+    settings = SelfAuditSettings.load()
+    lang = language_of(settings)
+    entries = SelfAuditLog.objects.all()
+    group = request.GET.get("group", "")
+    if group in activity.GROUPS:
+        entries = entries.filter(event__in=[event for event, name in activity.EVENT_GROUPS.items() if name == group])
+    result = request.GET.get("result", "")
+    if result in ("ok", "error"):
+        entries = entries.filter(ok=(result == "ok"))
+    for name, lookup in (("from", "time__date__gte"), ("to", "time__date__lte")):
+        try:
+            entries = entries.filter(**{lookup: date.fromisoformat(request.GET.get(name, ""))})
+        except ValueError:
+            pass
+    page = Paginator(entries, 50).get_page(request.GET.get("page"))
+    rows = [
+        {
+            "time": format_time(entry.time, settings),
+            "user": entry.user or tr("log.system", lang),
+            "event": tr(f"log_event.{entry.event}", lang),
+            "ok": entry.ok,
+            "text": activity.message(entry, lang),
+        }
+        for entry in page.object_list
+    ]
+    query = request.GET.copy()
+    query.pop("page", None)
+    return _render(request, "netbox_self_audit/log.html", {
+        "lang": lang,
+        "rows": rows,
+        "page": page,
+        "groups": [(key, tr(f"log_group.{key}", lang)) for key in activity.GROUPS],
+        "group": group,
+        "result": result,
+        "date_from": request.GET.get("from", ""),
+        "date_to": request.GET.get("to", ""),
+        "query": query.urlencode(),
+        "retention": settings.log_retention_days,
+    })
+
+
+# --------------------------------------------------------------------------
 # Settings
 # --------------------------------------------------------------------------
 
@@ -341,6 +405,7 @@ def settings_view(request):
         if form.is_valid():
             saved = form.save()
             messages.success(request, tr("set.saved", language_of(saved)))
+            activity.record("settings_saved", user=request.user, fields=", ".join(form.changed_data) or "-")
             return redirect("plugins:netbox_self_audit:settings")
     else:
         form = SettingsForm(instance=instance)
@@ -365,8 +430,10 @@ def email_view(request):
         try:
             mail.send_test_email(instance, to=to)
             messages.success(request, tr("ui.test_sent", lang, recipients=", ".join(to)))
+            activity.record("test_mail", user=request.user, recipients=", ".join(to))
         except Exception as exc:
             messages.error(request, tr("ui.test_failed", lang, error=exc))
+            activity.record("test_failed", ok=False, user=request.user, recipients=", ".join(to), error=exc)
         return redirect(here)
 
     if request.method == "POST":
@@ -374,6 +441,7 @@ def email_view(request):
         if form.is_valid():
             form.save()
             messages.success(request, tr("ui.email_saved", lang))
+            activity.record("email_saved", user=request.user, fields=", ".join(name for name in form.changed_data if "password" not in name) or "-")
             return redirect(here)
     else:
         form = EmailForm(instance=instance)

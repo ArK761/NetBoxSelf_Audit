@@ -1,0 +1,85 @@
+{% extends 'base/layout.html' %}
+{% load self_audit_tags %}
+
+{% block title %}{{ "log.title"|tr:lang }}{% endblock %}
+
+{% block content %}
+{% include "netbox_self_audit/inc/health_banner.html" %}
+<div class="card mb-3">
+  <div class="card-header">
+    <strong>{{ "log.title"|tr:lang }}</strong>
+    <div class="small text-muted">{% trf "log.help" lang days=retention %}</div>
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="sa-log-group">{{ "log.filter_event"|tr:lang }}</label>
+        <select class="form-select" name="group" id="sa-log-group">
+          <option value="">{{ "log.all"|tr:lang }}</option>
+          {% for key, label in groups %}<option value="{{ key }}" {% if key == group %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label" for="sa-log-result">{{ "log.filter_result"|tr:lang }}</label>
+        <select class="form-select" name="result" id="sa-log-result">
+          <option value="">{{ "log.all"|tr:lang }}</option>
+          <option value="ok" {% if result == "ok" %}selected{% endif %}>✅ {{ "log.ok"|tr:lang }}</option>
+          <option value="error" {% if result == "error" %}selected{% endif %}>❌ {{ "log.error"|tr:lang }}</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label" for="sa-log-from">{{ "ui.from"|tr:lang }}</label>
+        <input class="form-control" type="date" name="from" id="sa-log-from" value="{{ date_from }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label" for="sa-log-to">{{ "ui.to"|tr:lang }}</label>
+        <input class="form-control" type="date" name="to" id="sa-log-to" value="{{ date_to }}">
+      </div>
+      <div class="col-12 col-md-3">
+        <button type="submit" class="btn btn-primary">{{ "log.filter"|tr:lang }}</button>
+        <a href="?" class="btn btn-outline-secondary">{{ "log.reset"|tr:lang }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if rows %}
+    <div class="table-responsive">
+      <table class="table table-sm align-top">
+        <thead>
+          <tr>
+            <th style="width:11rem">{{ "field.time"|tr:lang }}</th>
+            <th style="width:9rem">{{ "self.col_user"|tr:lang }}</th>
+            <th style="width:13rem">{{ "log.col_event"|tr:lang }}</th>
+            <th style="width:3rem"></th>
+            <th>{{ "log.col_details"|tr:lang }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="{% if not row.ok %}table-danger{% endif %}">
+            <td class="text-nowrap">{{ row.time }}</td>
+            <td>{{ row.user }}</td>
+            <td>{{ row.event }}</td>
+            <td>{% if row.ok %}✅{% else %}❌{% endif %}</td>
+            <td>{{ row.text }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page.has_other_pages %}
+    <nav class="d-flex gap-2 align-items-center">
+      {% if page.has_previous %}<a class="btn btn-outline-secondary btn-sm" href="?{{ query }}&page={{ page.previous_page_number }}">&larr;</a>{% endif %}
+      <span class="small text-muted">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-outline-secondary btn-sm" href="?{{ query }}&page={{ page.next_page_number }}">&rarr;</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+      <p class="text-muted mb-0">{{ "log.empty"|tr:lang }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

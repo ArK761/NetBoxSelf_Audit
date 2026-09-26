@@ -17,6 +17,7 @@ Requires NetBox 4.7.
   Settings. A **Check now** button on the Audit page sends a test job to `netbox-rq` and waits for the answer.
   An interrupted background run is cleared automatically when `netbox-rq` starts.
 - Shows how long each audit took to generate and send
+- Activity log: who sent which audit to whom and when, checks, downloads, settings changes
 - English, Slovak, Czech, German
 
 ## Installation / upgrade
@@ -70,6 +71,15 @@ systemctl restart netbox netbox-rq
   Ready-made templates can be picked next to each message, placeholder buttons insert at the cursor and a preview
   shows the resulting text.
 - An overview shows all watched object types as green buttons (click to edit) with their fields; **Delete** removes all watched fields of an object type. The editing screen has a Back button that asks whether to save unsaved changes.
+
+### Log (NetBoxSelf Audit → Log)
+
+Activity log of the plugin: audits sent (manually / automatically, to whom, period, PDF or body, number of changes,
+duration), automatic e-mails not sent and why, test e-mails, "Check now", interrupted runs cleared, PDF / HTML
+downloads and changes of settings and watched fields – with the user (or "system") and the result. Filter by event,
+result and date. Entries are kept for 30 / 90 / 180 / 365 days (Settings) and older ones are deleted automatically.
+
+The menu items have coloured icon buttons: Audit blue, Watched fields orange, Log red, Settings green, E-mail cyan.
 
 ### Settings (NetBoxSelf Audit → Settings)
 

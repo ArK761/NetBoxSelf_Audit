@@ -49,6 +49,9 @@ class SelfAuditJob(JobRunner):
         count = stale.update(status="errored", completed=now, error="Interrupted run (e.g. netbox-rq restart), cleared by NetBoxSelf Audit")
         if count:
             logger.warning("Cleared %s interrupted NetBoxSelf Audit job(s)", count)
+            from . import activity
+
+            activity.record("stale_cleared", ok=False, count=count)
         return count
 
     @classmethod
@@ -61,7 +64,7 @@ class SelfAuditJob(JobRunner):
         return super().enqueue_once(instance, schedule_at, interval, *args, **kwargs)
 
     def run(self, *args, **kwargs):
-        from . import mail, rules
+        from . import activity, mail, rules
 
         settings = SelfAuditSettings.load()
         # Heartbeat first, so that an error in a later step does not look like a stopped background check.
@@ -75,6 +78,10 @@ class SelfAuditJob(JobRunner):
             except Exception:
                 logger.exception("NetBox version / plugin check failed")
 
+        try:
+            activity.cleanup(settings)
+        except Exception:
+            logger.exception("Cleaning the NetBoxSelf Audit log failed")
         if not settings.audit_email_enabled or not mail.recipients(settings):
             return
         due = mail.scheduled_period(settings, timezone.now())
@@ -86,15 +93,22 @@ class SelfAuditJob(JobRunner):
         # cause the same audit to be sent again every minute.
         settings.last_sent = slot
         settings.save(update_fields=["last_sent"])
+        recipients = ", ".join(mail.recipients(settings))
         try:
             result = rules.send_report(settings, since, until, label)
-        except Exception:
+        except Exception as exc:
             logger.exception("Audit e-mail failed (period %s)", period)
+            activity.record("send_failed", ok=False, recipients=recipients, period=label, error=exc)
             return
         if result["sent"]:
             logger.info(
                 "Audit e-mail sent (period %s, %s changes, to %s, took %.1f s)",
-                period, result["total"], ", ".join(mail.recipients(settings)), result.get("duration", 0),
+                period, result["total"], recipients, result.get("duration", 0),
+            )
+            activity.record(
+                "send_auto", recipients=recipients, period=label, delivery=settings.audit_email_delivery,
+                total=result["total"], seconds=round(result.get("duration", 0), 2),
             )
         else:
             logger.info("Audit e-mail not sent (period %s): %s", period, result.get("reason_en", result["reason"]))
+            activity.record("send_auto_skipped", period=label, reason=result["reason"])

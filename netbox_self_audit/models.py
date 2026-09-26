@@ -43,6 +43,7 @@ class SelfAuditSettings(models.Model):
     watchdog_enabled = models.BooleanField(default=True)
     watchdog_minutes = models.PositiveSmallIntegerField(default=10)
     health_endpoint_enabled = models.BooleanField(default=True)
+    log_retention_days = models.PositiveSmallIntegerField(default=180)
     echo_reply = models.DateTimeField(null=True, blank=True)  # answer of the manual "check now" job
     # NetBox version and plugins seen at the last check
     system_snapshot = models.JSONField(default=dict, blank=True)
@@ -92,3 +93,19 @@ class SelfAuditSystemEvent(models.Model):
 
     def __str__(self):
         return f"{self.kind} {self.name} {self.old} -> {self.new}"
+
+
+class SelfAuditLog(models.Model):
+    """Activity log of the plugin: e-mails, checks, exports, settings changes."""
+
+    time = models.DateTimeField(db_index=True)
+    user = models.CharField(max_length=150, blank=True, default="")  # empty = the system (background job)
+    event = models.CharField(max_length=32, db_index=True)
+    ok = models.BooleanField(default=True)
+    params = models.JSONField(default=dict, blank=True)  # values for the translated message
+
+    class Meta:
+        ordering = ("-time", "-id")
+
+    def __str__(self):
+        return f"{self.time} {self.event} {'ok' if self.ok else 'error'}"
