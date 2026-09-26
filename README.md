@@ -56,6 +56,15 @@ cd /opt/netbox/netbox
 systemctl restart netbox netbox-rq
 ```
 
+## Permissions
+
+- **Audit page** (view, generate, download PDF / HTML): NetBox permission `core.view_objectchange` – the same as for
+  the NetBox changelog, because the audit shows its data.
+- **Watched fields, Log, Settings, E-mail, sending the audit, "Check now"**: permission
+  `netbox_self_audit.change_selfauditsettings` (Admin → Permissions → object type *NetBoxSelf Audit settings*,
+  action *Change*). Superusers have both.
+- Menu items are shown only to users with the permission.
+
 ## Features
 
 ### Watched fields (NetBoxSelf Audit → Watched fields)

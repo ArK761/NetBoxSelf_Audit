@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from urllib.parse import quote
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -17,8 +18,28 @@ from .i18n import language_of, tr
 from .models import SelfAuditRule, SelfAuditSettings
 
 
+# Who may do what: the audit shows the NetBox changelog, so it needs the same permission as the changelog;
+# settings, watched fields, e-mail, sending and the log need the right to change the plugin settings.
+VIEW_PERM = "core.view_objectchange"
+MANAGE_PERM = "netbox_self_audit.change_selfauditsettings"
+
+
 def _login(request):
     return redirect(f"{reverse('login')}?next={request.path}")
+
+
+def _check(request, perm):
+    """None when allowed, otherwise the login redirect; raises 403 for a logged-in user without the permission."""
+    if not request.user.is_authenticated:
+        return _login(request)
+    if not request.user.has_perm(perm):
+        raise PermissionDenied
+    return None
+
+
+def _js(value) -> str:
+    """JSON for a <script> block: <, > and & are escaped so no text can close the script tag."""
+    return mark_safe(json.dumps(value, ensure_ascii=False).replace("<", "\\u003C").replace(">", "\\u003E").replace("&", "\\u0026"))
 
 
 def _render(request, template, context):
@@ -47,8 +68,8 @@ def health_view(request):
 # --------------------------------------------------------------------------
 
 def rules_view(request):
-    if not request.user.is_authenticated:
-        return _login(request)
+    if (denied := _check(request, MANAGE_PERM)) is not None:
+        return denied
     settings = SelfAuditSettings.load()
     lang = language_of(settings)
     here = reverse("plugins:netbox_self_audit:rules")
@@ -147,18 +168,18 @@ def rules_view(request):
         "selected_confirm": tr("self.delete_confirm", lang, type=rules.type_label(selected)) if selected else "",
         "severities": severities(lang),
         "placeholders": ", ".join("{" + name + "}" for name in rules.PLACEHOLDERS),
-        "unsaved_text": mark_safe(json.dumps(tr("self.unsaved", lang))),
-        "ask_save": mark_safe(json.dumps(tr("self.ask_save", lang))),
-        "ask_discard": mark_safe(json.dumps(tr("self.ask_discard", lang))),
+        "unsaved_text": _js(tr("self.unsaved", lang)),
+        "ask_save": _js(tr("self.ask_save", lang)),
+        "ask_discard": _js(tr("self.ask_discard", lang)),
         "overview_url": here,
-        "samples": mark_safe(json.dumps({
+        "samples": _js({
             "user": "admin", "object": "XXXX", "object_type": rules.type_label(selected) if selected else "",
             "old": tr("self.sample_old", lang), "new": tr("self.sample_new", lang), "added": "PC4, PC5", "removed": "PC2",
             "changes": tr("self.chg_value", lang, old=tr("self.sample_old", lang), new=tr("self.sample_new", lang)),
             "action": "update",
-        }, ensure_ascii=False)),
+        }),
         "placeholder_list": list(rules.PLACEHOLDERS),
-        "preview_label": mark_safe(json.dumps(tr("self.preview", lang))),
+        "preview_label": _js(tr("self.preview", lang)),
     })
 
 
@@ -224,8 +245,10 @@ def _chosen_recipients(request, settings, lang):
 
 
 def audit_view(request):
-    if not request.user.is_authenticated:
-        return _login(request)
+    if (denied := _check(request, VIEW_PERM)) is not None:
+        return denied
+    if request.method == "POST" and not request.user.has_perm(MANAGE_PERM):
+        raise PermissionDenied
     settings = SelfAuditSettings.load()
     lang = language_of(settings)
     since, until, label = _period(request, settings)
@@ -305,6 +328,7 @@ def audit_view(request):
         "recipient_list": mail.recipients(settings),
         "pdf_password_set": bool(settings.audit_pdf_password),
         "default_delivery": settings.audit_email_delivery,
+        "can_manage": request.user.has_perm(MANAGE_PERM),
         "view": view,
     }
     if not context["generated"]:
@@ -345,8 +369,8 @@ def audit_view(request):
 # --------------------------------------------------------------------------
 
 def log_view(request):
-    if not request.user.is_authenticated:
-        return _login(request)
+    if (denied := _check(request, MANAGE_PERM)) is not None:
+        return denied
     from django.core.paginator import Paginator
 
     from .models import SelfAuditLog
@@ -397,8 +421,8 @@ def log_view(request):
 # --------------------------------------------------------------------------
 
 def settings_view(request):
-    if not request.user.is_authenticated:
-        return _login(request)
+    if (denied := _check(request, MANAGE_PERM)) is not None:
+        return denied
     instance = SelfAuditSettings.load()
     if request.method == "POST":
         form = SettingsForm(request.POST, instance=instance)
@@ -417,8 +441,8 @@ def settings_view(request):
 # --------------------------------------------------------------------------
 
 def email_view(request):
-    if not request.user.is_authenticated:
-        return _login(request)
+    if (denied := _check(request, MANAGE_PERM)) is not None:
+        return denied
     instance = SelfAuditSettings.load()
     lang = language_of(instance)
     here = reverse("plugins:netbox_self_audit:email")

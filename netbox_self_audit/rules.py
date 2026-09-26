@@ -10,6 +10,7 @@ recorded by the plugin (SelfAuditSystemEvent).
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone as dt_timezone
 from html import escape
 
@@ -309,17 +310,17 @@ def difference(resolver: _Resolver, key: str, field: str, old_raw, new_raw) -> d
 PLACEHOLDERS = ("user", "object", "object_type", "field", "old", "new", "added", "removed", "changes", "action")
 
 
-class _Keep(dict):
-    def __missing__(self, key):
-        return "{" + key + "}"
+
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
 def render_message(template: str, values: dict) -> str:
-    """Fill {placeholders}; unknown ones are left as they are, a broken template is shown unchanged."""
-    try:
-        return template.format_map(_Keep(values))
-    except (ValueError, IndexError, AttributeError, KeyError):
-        return template
+    """Fill {placeholders}; unknown ones are left as they are.
+
+    Only plain {name} is replaced (no str.format), so a template cannot use format specs such as
+    {user:>999999999} or attribute access.
+    """
+    return _PLACEHOLDER.sub(lambda match: str(values[match.group(1)]) if match.group(1) in values else match.group(0), template or "")
 
 
 def _changes_text(diff: dict, lang: str) -> str:

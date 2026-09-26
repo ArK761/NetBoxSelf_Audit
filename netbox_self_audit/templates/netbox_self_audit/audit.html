@@ -12,12 +12,14 @@
     {% if not has_rules %}<div class="alert alert-info mt-2 mb-0">{{ "self.no_rules"|tr:lang }} <a href="{% url 'plugins:netbox_self_audit:rules' %}">{{ "menu.rules"|tr:lang }}</a></div>{% endif %}
   </div>
   <div class="card-body">
+    {% if can_manage %}
     <form method="post" class="float-end ms-2" id="sa-check-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="check_worker">
       <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ "check.title"|tr:lang }}"
               onclick="this.disabled=true;this.innerText='{{ "check.running"|tr:lang }}';this.form.submit();">&#x1F50E; {{ "check.button"|tr:lang }}</button>
     </form>
+    {% endif %}
     <form method="get" id="sa-self-audit-form">
       <input type="hidden" name="view" value="{{ view }}">
       <div class="row g-3 align-items-end">
@@ -84,8 +86,8 @@
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-secondary btn-sm" href="?{{ query }}&export=pdf">{{ "ui.download_pdf"|tr:lang }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="?{{ query }}&export=html">{{ "ui.download_html"|tr:lang }}</a>
-      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#sa-send-modal"
-              {% if not recipients %}disabled title="{{ "ui.set_recipients"|tr:lang }}"{% endif %}>{{ "ui.send_email"|tr:lang }}</button>
+{% if can_manage %}      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#sa-send-modal"
+              {% if not recipients %}disabled title="{{ "ui.set_recipients"|tr:lang }}"{% endif %}>{{ "ui.send_email"|tr:lang }}</button>{% endif %}
     </div>
   </div>
   <div class="card-body">
