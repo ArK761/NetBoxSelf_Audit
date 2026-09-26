@@ -18,6 +18,8 @@ Requires NetBox 4.7.
   An interrupted background run is cleared automatically when `netbox-rq` starts.
 - Shows how long each audit took to generate and send
 - Activity log: who sent which audit to whom and when, checks, downloads, settings changes
+- Colour-coded menu: every item has its own colour and icon – Audit blue, Watched fields orange, Log red,
+  Settings green, E-mail cyan
 - English, Slovak, Czech, German
 
 ## Installation / upgrade
@@ -87,8 +89,6 @@ Activity log of the plugin: audits sent (manually / automatically, to whom, peri
 duration), automatic e-mails not sent and why, test e-mails, "Check now", interrupted runs cleared, PDF / HTML
 downloads and changes of settings and watched fields – with the user (or "system") and the result. Filter by event,
 result and date. Entries are kept for 30 / 90 / 180 / 365 days (Settings) and older ones are deleted automatically.
-
-The menu items are coloured with an icon: Audit blue, Watched fields orange, Log red, Settings green, E-mail cyan.
 
 ### Settings (NetBoxSelf Audit → Settings)
 
