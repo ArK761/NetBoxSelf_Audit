@@ -197,6 +197,8 @@ class SettingsForm(forms.ModelForm):
     group_by = forms.ChoiceField(choices=())
     report_header = forms.CharField(required=False, max_length=200)
     track_system = forms.BooleanField(required=False)
+    watchdog_enabled = forms.BooleanField(required=False)
+    watchdog_minutes = forms.IntegerField(min_value=1, max_value=1440)
     severity_netbox = forms.ChoiceField(choices=severities())
     severity_plugin_added = forms.ChoiceField(choices=severities())
     severity_plugin_removed = forms.ChoiceField(choices=severities())
@@ -209,6 +211,7 @@ class SettingsForm(forms.ModelForm):
         fields = (
             "language", "datetime_format", "min_severity", "default_period", "group_by", "report_header", "track_system",
             "severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version",
+            "watchdog_enabled", "watchdog_minutes",
         )
 
     LABELS = {
@@ -223,6 +226,8 @@ class SettingsForm(forms.ModelForm):
         "severity_plugin_added": ("form.sev_plugin_added", None),
         "severity_plugin_removed": ("form.sev_plugin_removed", None),
         "severity_plugin_version": ("form.sev_plugin_version", None),
+        "watchdog_enabled": ("form.watchdog_enabled", "form.watchdog_enabled_help"),
+        "watchdog_minutes": ("form.watchdog_minutes", None),
     }
 
     def __init__(self, *args, **kwargs):

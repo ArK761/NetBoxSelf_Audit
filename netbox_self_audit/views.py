@@ -11,6 +11,7 @@ from django.utils.safestring import mark_safe
 
 from . import mail, rules
 from .common import SEVERITY_RANK, date_format, format_time, seconds, severities, severity_label
+from .health import heartbeat_status
 from .forms import PERIOD_KEYS, EmailForm, SettingsForm
 from .i18n import language_of, tr
 from .models import SelfAuditRule, SelfAuditSettings
@@ -18,6 +19,21 @@ from .models import SelfAuditRule, SelfAuditSettings
 
 def _login(request):
     return redirect(f"{reverse('login')}?next={request.path}")
+
+
+def _render(request, template, context):
+    """Render a plugin page with the heartbeat warning (shown when the background check stopped)."""
+    settings = SelfAuditSettings.load()
+    ok, message = heartbeat_status(settings)
+    return render(request, template, {**context, "health_ok": ok, "health_message": message})
+
+
+def health_view(request):
+    """Plain-text status for monitoring (e.g. LibreNMS HTTP service): 200 "OK" or 503 "ERROR". No login needed."""
+    ok, message = heartbeat_status(SelfAuditSettings.load())
+    response = HttpResponse(("OK" if ok else "ERROR") + "\n" + message + "\n", content_type="text/plain; charset=utf-8", status=200 if ok else 503)
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 # --------------------------------------------------------------------------
@@ -112,7 +128,7 @@ def rules_view(request):
     overview.sort(key=lambda item: item["label"].lower())
     for item in overview:
         item["confirm"] = tr("self.delete_confirm", lang, type=item["label"])
-    return render(request, "netbox_self_audit/rules.html", {
+    return _render(request, "netbox_self_audit/rules.html", {
         "settings": settings,
         "lang": lang,
         "groups": rules.watchable_types(),
@@ -262,7 +278,7 @@ def audit_view(request):
         "view": view,
     }
     if not context["generated"]:
-        return render(request, "netbox_self_audit/audit.html", context)
+        return _render(request, "netbox_self_audit/audit.html", context)
 
     report = rules.build_report(settings, since, until, label, types or None, min_severity)
     context["duration"] = seconds(report["duration"], lang)
@@ -289,7 +305,7 @@ def audit_view(request):
         "report": report, "subject": subject, "query": request.GET.urlencode(), "base_query": query.urlencode(),
         "tree": rules.group_tree(report["entries"]) if view == "object" else [],
     })
-    return render(request, "netbox_self_audit/audit.html", context)
+    return _render(request, "netbox_self_audit/audit.html", context)
 
 
 # --------------------------------------------------------------------------
@@ -308,7 +324,7 @@ def settings_view(request):
             return redirect("plugins:netbox_self_audit:settings")
     else:
         form = SettingsForm(instance=instance)
-    return render(request, "netbox_self_audit/settings.html", {"form": form, "lang": language_of(instance)})
+    return _render(request, "netbox_self_audit/settings.html", {"form": form, "lang": language_of(instance)})
 
 
 # --------------------------------------------------------------------------
@@ -341,7 +357,7 @@ def email_view(request):
             return redirect(here)
     else:
         form = EmailForm(instance=instance)
-    return render(request, "netbox_self_audit/email.html", {
+    return _render(request, "netbox_self_audit/email.html", {
         "form": form,
         "last_sent": format_time(instance.last_sent, instance) if instance.last_sent else "",
         "password_set": bool(instance.smtp_password),

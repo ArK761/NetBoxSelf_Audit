@@ -52,6 +52,9 @@ class SelfAuditJob(JobRunner):
         from . import mail, rules
 
         settings = SelfAuditSettings.load()
+        # Heartbeat first, so that an error in a later step does not look like a stopped background check.
+        settings.last_heartbeat = timezone.now()
+        settings.save(update_fields=["last_heartbeat"])
         if settings.track_system:
             try:
                 recorded = rules.check_system(settings)

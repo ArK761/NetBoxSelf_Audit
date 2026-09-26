@@ -269,5 +269,14 @@ MESSAGES: dict[str, dict[str, str]] = {
     "self.took": {"en": "took {time}", "sk": "trvalo {time}", "cs": "trvalo {time}", "de": "Dauer {time}"},
     "self.took_sentence": {"en": "It took {time}.", "sk": "Trvalo to {time}.", "cs": "Trvalo to {time}.", "de": "Dauer: {time}."},
     "self.generated_in": {"en": "generated in {time}", "sk": "vygenerované za {time}", "cs": "vygenerováno za {time}", "de": "erstellt in {time}"},
+    "health.title": {"en": "The background check is not running.", "sk": "Kontrola na pozadí nebeží.", "cs": "Kontrola na pozadí neběží.", "de": "Die Hintergrundprüfung läuft nicht."},
+    "health.hint": {"en": "Check the NetBox background worker:", "sk": "Skontroluj službu na pozadí NetBoxu:", "cs": "Zkontroluj službu na pozadí NetBoxu:", "de": "NetBox-Hintergrunddienst prüfen:"},
+    "health.ok": {"en": "last run {time}", "sk": "posledný beh {time}", "cs": "poslední běh {time}", "de": "letzter Lauf {time}"},
+    "health.disabled": {"en": "monitoring disabled", "sk": "sledovanie vypnuté", "cs": "sledování vypnuto", "de": "Überwachung deaktiviert"},
+    "health.never": {"en": "The background check has not run yet.", "sk": "Kontrola na pozadí ešte nebežala.", "cs": "Kontrola na pozadí ještě neběžela.", "de": "Die Hintergrundprüfung ist noch nicht gelaufen."},
+    "health.stale": {"en": "No run since {time} (more than {minutes} min).", "sk": "Nebežala od {time} (viac ako {minutes} min).", "cs": "Neběžela od {time} (víc než {minutes} min).", "de": "Kein Lauf seit {time} (mehr als {minutes} Min.)."},
+    "form.watchdog_enabled": {"en": "Monitor the background check (heartbeat)", "sk": "Sledovať kontrolu na pozadí (heartbeat)", "cs": "Sledovat kontrolu na pozadí (heartbeat)", "de": "Hintergrundprüfung überwachen (Heartbeat)"},
+    "form.watchdog_enabled_help": {"en": "The background check reports every minute. If it stops, the plugin pages show a warning and /plugins/self-audit/health/ returns ERROR (HTTP 503) instead of OK – add this address to LibreNMS as an HTTP service.", "sk": "Kontrola na pozadí sa ohlási každú minútu. Keď prestane, stránky pluginu zobrazia varovanie a /plugins/self-audit/health/ vráti ERROR (HTTP 503) namiesto OK – túto adresu pridaj do LibreNMS ako HTTP službu.", "cs": "Kontrola na pozadí se ohlásí každou minutu. Když přestane, stránky pluginu zobrazí varování a /plugins/self-audit/health/ vrátí ERROR (HTTP 503) místo OK – tuto adresu přidej do LibreNMS jako HTTP službu.", "de": "Die Hintergrundprüfung meldet sich jede Minute. Bleibt sie aus, zeigen die Plugin-Seiten eine Warnung und /plugins/self-audit/health/ liefert ERROR (HTTP 503) statt OK – diese Adresse in LibreNMS als HTTP-Dienst eintragen."},
+    "form.watchdog_minutes": {"en": "Error after this many minutes without a run", "sk": "Chyba po toľkých minútach bez behu", "cs": "Chyba po tolika minutách bez běhu", "de": "Fehler nach so vielen Minuten ohne Lauf"},
 }
 # fmt: on

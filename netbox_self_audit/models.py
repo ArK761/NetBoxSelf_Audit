@@ -38,6 +38,10 @@ class SelfAuditSettings(models.Model):
     audit_email_delivery = models.CharField(max_length=8, default="pdf")  # "body" or "pdf"
     audit_pdf_password = models.TextField(blank=True, default="")
     last_sent = models.DateTimeField(null=True, blank=True)
+    # Heartbeat of the background check (written by every run of the job)
+    last_heartbeat = models.DateTimeField(null=True, blank=True)
+    watchdog_enabled = models.BooleanField(default=True)
+    watchdog_minutes = models.PositiveSmallIntegerField(default=10)
     # NetBox version and plugins seen at the last check
     system_snapshot = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
