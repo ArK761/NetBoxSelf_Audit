@@ -12,7 +12,7 @@ Requires NetBox 4.7.
 
 ```bash
 source /opt/netbox/venv/bin/activate
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
 ```
 
 2. **Required:** enable the plugin in `/opt/netbox/netbox/netbox/configuration.py` (add it to the existing list):
@@ -29,7 +29,7 @@ PLUGINS = [
    `configuration.py` but no longer installed):
 
 ```
-netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
+netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
 ```
 
 The plugin is not on PyPI, so the line must contain the GitHub address, not only the name.
