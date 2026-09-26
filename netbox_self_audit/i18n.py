@@ -266,5 +266,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "form.delivery_body": {"en": "In the e-mail body", "sk": "V tele e-mailu", "cs": "V těle e-mailu", "de": "Im E-Mail-Text"},
     "form.delivery_pdf": {"en": "As a PDF attachment", "sk": "Ako PDF príloha", "cs": "Jako PDF příloha", "de": "Als PDF-Anhang"},
     "self.mail_pdf_body": {"en": "The NetBoxSelf Audit for {period} is attached as a PDF.", "sk": "NetBoxSelf Audit za obdobie {period} je v prílohe (PDF).", "cs": "NetBoxSelf Audit za období {period} je v příloze (PDF).", "de": "Der NetBoxSelf Audit für {period} ist als PDF angehängt."},
+    "self.took": {"en": "took {time}", "sk": "trvalo {time}", "cs": "trvalo {time}", "de": "Dauer {time}"},
+    "self.took_sentence": {"en": "It took {time}.", "sk": "Trvalo to {time}.", "cs": "Trvalo to {time}.", "de": "Dauer: {time}."},
+    "self.generated_in": {"en": "generated in {time}", "sk": "vygenerované za {time}", "cs": "vygenerováno za {time}", "de": "erstellt in {time}"},
 }
 # fmt: on

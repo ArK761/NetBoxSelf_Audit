@@ -5,7 +5,7 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 
-from .common import SEVERITY_COLOR, format_time as _format_time
+from .common import SEVERITY_COLOR, format_time as _format_time, seconds
 from .i18n import language_of, tr
 
 
@@ -57,7 +57,8 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None,
     story = [Paragraph(escape(report_header), header)] if report_header else []
     story += [
         Paragraph(escape(tr("self.title", lang)), title),
-        Paragraph(escape(tr("report.period", lang, period=report["period_label"]) + "    ·    " + tr("report.generated", lang, time=generated)), small),
+        Paragraph(escape(tr("report.period", lang, period=report["period_label"]) + "    ·    " + tr("report.generated", lang, time=generated)
+                  + (f" ({tr('self.took', lang, time=seconds(report['duration'], lang))})" if report.get("duration") is not None else "")), small),
         Spacer(1, 3 * mm),
         Paragraph(escape(subject), header),
         Spacer(1, 2 * mm),

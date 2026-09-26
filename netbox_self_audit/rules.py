@@ -614,6 +614,9 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
 def build_report(settings, since, until, label: str, types: list[str] | None = None, min_severity: str | None = None) -> dict:
     from django.utils import timezone
 
+    from time import monotonic
+
+    started = monotonic()
     lang = language_of(settings)
     minimum = SEVERITY_RANK.get(min_severity or getattr(settings, "min_severity", "low") or "low", 0)
     counts = {key: 0 for key in SEVERITY_KEYS}
@@ -634,6 +637,7 @@ def build_report(settings, since, until, label: str, types: list[str] | None = N
         "since": since or datetime(1970, 1, 1, tzinfo=dt_timezone.utc),
         "until": until or timezone.now(),
         "period_label": label,
+        "duration": monotonic() - started,
     }
 
 
@@ -774,8 +778,11 @@ def send_report(
     from django.core.mail import EmailMultiAlternatives
     from django.utils import timezone
 
+    from time import monotonic
+
     from .mail import _deliver, from_address, recipients
 
+    started = monotonic()
     lang = language_of(settings)
     to = to or recipients(settings)
     if not to:
@@ -799,4 +806,4 @@ def send_report(
         stamp = timezone.localtime().strftime("%Y-%m-%d")
         message.attach(f"netbox-self-audit_{stamp}.pdf", build_pdf(settings, report, subject, pdf_password or None, view), "application/pdf")
     _deliver(settings, message)
-    return {"sent": True, "total": report["total"], "reason": ""}
+    return {"sent": True, "total": report["total"], "reason": "", "duration": monotonic() - started}

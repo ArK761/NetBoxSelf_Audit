@@ -12,7 +12,7 @@ Requires NetBox 4.7.
 
 ```bash
 source /opt/netbox/venv/bin/activate
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
 ```
 
 2. **Required:** enable the plugin in `/opt/netbox/netbox/netbox/configuration.py` (add it to the existing list):
@@ -29,7 +29,7 @@ PLUGINS = [
    `configuration.py` but no longer installed):
 
 ```
-netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
 ```
 
 The plugin is not on PyPI, so the line must contain the GitHub address, not only the name.
@@ -102,6 +102,9 @@ first run only stores the current state.
   can be password protected (128-bit;
   printing and copying allowed, editing blocked).
 - Results of the automatic e-mail are written to the NetBox log (`netbox.plugins.netbox_self_audit`).
+- The Audit page, the PDF and the "sent" message show how long the audit took to generate / send.
+- If a background run is interrupted (e.g. netbox-rq restarted while it was running), it is cleared automatically
+  when netbox-rq starts, so the schedule never stays blocked.
 
 ### Data and limits
 

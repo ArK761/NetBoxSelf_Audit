@@ -51,5 +51,11 @@ def format_time(value, settings) -> str:
         return timezone.localtime(value).strftime("%d.%m.%Y %H:%M:%S")
 
 
+def seconds(value: float, lang: str = "en") -> str:
+    """Duration for people: "0.4 s" / "0,4 s" (decimal comma except in English)."""
+    text = f"{value:.2f}" if value < 1 else f"{value:.1f}" if value < 10 else f"{value:.0f}"
+    return (text if lang == "en" else text.replace(".", ",")) + " s"
+
+
 def date_format(settings) -> str:
     return (getattr(settings, "datetime_format", "") or "%d.%m.%Y").split(" ")[0].split("T")[0]
