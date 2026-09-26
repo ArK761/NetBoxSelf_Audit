@@ -351,6 +351,21 @@ def default_message(field: str) -> str:
     return "self.msg_update"
 
 
+PRESET_KINDS = {"create": 3, "delete": 3, "update": 4, "list": 3}
+
+
+def presets(field: str, lang: str) -> list[tuple[str, list[str]]]:
+    """Ready-made log message templates offered for a watched field: [(group label, [templates])]."""
+    def group(kind):
+        return (tr(f"self.tpl_group_{kind}", lang), [tr(f"self.tpl_{kind}_{index}", lang) for index in range(1, PRESET_KINDS[kind] + 1)])
+
+    if field == CREATE:
+        return [group("create")]
+    if field == DELETE:
+        return [group("delete")]
+    return [group("update"), group("list")]
+
+
 def message_for(rule, values: dict, lang: str) -> str:
     template = (rule.message or "").strip() or tr(default_message(rule.field), lang)
     return render_message(template, values)
@@ -473,6 +488,51 @@ def _object_url(key: str, pk) -> str:
     return _url(f"{app_label}:{model_name}", pk)
 
 
+def _created_fields(resolver: _Resolver, key: str, data: dict | None, lang: str) -> list[tuple[str, str]]:
+    """[(label, value)] of every filled field of a newly created object, in NetBox form order."""
+    fields = []
+    for _section, items in field_sections(key, lang):
+        for name, label, _kind in items:
+            value = resolver.display(key, name, _raw(data, name))
+            if isinstance(value, list):
+                value = ", ".join(item for item in value if item)
+            if value not in ("", None):
+                fields.append((label, str(value)))
+    return fields
+
+
+def group_tree(entries: list[dict]) -> list[dict]:
+    """Entries grouped as object type -> object -> changes (oldest first), types and objects alphabetically."""
+    types: dict[str, dict] = {}
+    for entry in entries:
+        group = types.setdefault(entry["object_type_key"], {
+            "key": entry["object_type_key"], "label": entry["object_type"], "objects": {}, "count": 0, "severity": "low",
+        })
+        obj = group["objects"].setdefault(entry.get("object_id") or entry["object"], {
+            "name": entry["object"], "url": "", "deleted": False, "entries": [], "severity": "low",
+        })
+        obj["entries"].append(entry)
+        if entry["action"] == "delete":
+            obj["deleted"] = True
+        if entry.get("object_url"):
+            obj["url"] = entry["object_url"]
+        for node in (group, obj):
+            if SEVERITY_RANK.get(entry["severity"], 0) > SEVERITY_RANK[node["severity"]]:
+                node["severity"] = entry["severity"]
+        group["count"] += 1
+    tree = []
+    for group in sorted(types.values(), key=lambda item: item["label"].lower()):
+        objects = sorted(group["objects"].values(), key=lambda item: str(item["name"]).lower())
+        for obj in objects:
+            obj["entries"].sort(key=lambda entry: entry["when"])
+            if obj["deleted"]:
+                obj["url"] = ""
+            obj["count"] = len(obj["entries"])
+            obj["open"] = SEVERITY_RANK[obj["severity"]] >= SEVERITY_RANK["high"]
+        tree.append({**group, "objects": objects})
+    return tree
+
+
 def collect(settings, since, until, types: list[str] | None = None) -> list[dict]:
     """Audit entries of the period (all severities), newest first."""
     from .models import SelfAuditSystemEvent
@@ -498,6 +558,8 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
             "object_url": _object_url(key, change.changed_object_id) if change.action != "delete" else "",
             "changelog_url": _url("core:objectchange", change.pk),
             "action": change.action,
+            "object_id": change.changed_object_id,
+            "fields": [],
         }
         values = {"user": user, "object": change.object_repr, "object_type": base["object_type"], "action": change.action}
         if change.action in ("create", "delete"):
@@ -508,6 +570,7 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
             entries.append({
                 **base, "severity": rule.severity, "field": rule.field, "field_label": field_label(key, rule.field, lang),
                 "kind": "event", "old": "", "new": "", "added": [], "removed": [], "text": message_for(rule, values, lang),
+                "fields": _created_fields(resolver, key, change.postchange_data, lang) if change.action == "create" else [],
             })
             continue
         if field_labels.get(key) is None:
@@ -538,6 +601,7 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
         for event in events:
             entries.append({
                 "when": event.time, "user": "", "object": event.name, "object_type": "NetBox", "object_type_key": "netbox.system",
+                "object_id": event.name, "fields": [],
                 "object_url": "", "changelog_url": "", "action": "system", "severity": _system_severity(settings, event.kind), "field": event.kind,
                 "field_label": "", "kind": "event", "old": event.old, "new": event.new, "added": [], "removed": [],
                 "text": _system_text(event, lang),
@@ -581,14 +645,44 @@ def report_subject(settings, report: dict) -> str:
     return tr("self.subject", lang, total=report["total"]) + (f" ({summary})" if summary else "")
 
 
-def render_report(settings, report: dict) -> tuple[str, str, str]:
-    """(subject, plain text, HTML) of the NetBox Self audit."""
+def _detail_text(entry: dict) -> list[str]:
+    lines = [f"    {label}: {value}" for label, value in entry.get("fields", [])]
+    if entry["kind"] in ("list", "lines"):
+        lines += [f"    + {item}" for item in entry["added"]] + [f"    - {item}" for item in entry["removed"]]
+    return lines
+
+
+def _detail_html(entry: dict) -> str:
+    parts = [
+        f'<div style="color:#495057;font-size:12px">{escape(label)}: <strong>{escape(value)}</strong></div>'
+        for label, value in entry.get("fields", [])
+    ]
+    if entry["kind"] in ("list", "lines"):
+        parts += [f'<div style="color:#198754;font-family:monospace;font-size:12px">+ {escape(item)}</div>' for item in entry["added"]]
+        parts += [f'<div style="color:#dc3545;font-family:monospace;font-size:12px">&minus; {escape(item)}</div>' for item in entry["removed"]]
+    return "".join(parts)
+
+
+def _badge(severity: str, label: str) -> str:
+    return (
+        f'<span style="color:#fff;background:{SEVERITY_COLOR[severity]};padding:2px 6px;border-radius:4px">'
+        f"{escape(label)}</span>"
+    )
+
+
+def view_of(settings, view: str | None = None) -> str:
+    view = view or getattr(settings, "group_by", "object") or "object"
+    return view if view in ("object", "time") else "object"
+
+
+def render_report(settings, report: dict, view: str | None = None) -> tuple[str, str, str]:
+    """(subject, plain text, HTML) of the NetBoxSelf Audit, grouped by object or listed by time."""
     lang = language_of(settings)
+    view = view_of(settings, view)
     subject = report_subject(settings, report)
     title = tr("self.title", lang)
     header = (getattr(settings, "report_header", "") or "").strip()
     period = tr("report.period", lang, period=report["period_label"])
-    columns = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("self.col_object", lang), tr("field.change", lang)]
     text = ([header] if header else []) + [title, period, ""]
     html = [
         '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#212529">',
@@ -603,33 +697,52 @@ def render_report(settings, report: dict) -> tuple[str, str, str]:
 
     text.extend([subject, ""])
     html.append(f"<p><strong>{escape(subject)}</strong></p>")
+    cell = '<td style="border-bottom:1px solid #dee2e6;vertical-align:top">{}</td>'
+    head = '<th style="text-align:left;border-bottom:2px solid #dee2e6;background:#f8f9fa">{}</th>'
+
+    if view == "object":
+        columns = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("field.change", lang)]
+        for group in group_tree(report["entries"]):
+            group_title = f"{group['label']} ({tr('self.tree_changes', lang, count=group['count'])})"
+            text.append(f"== {group_title} ==")
+            html.append(f'<h3 style="margin:20px 0 6px">{escape(group_title)}</h3>')
+            for obj in group["objects"]:
+                name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
+                text.append(f"-- {name}")
+                html.append(f'<h4 style="margin:12px 0 4px">{escape(name)}</h4>')
+                html.append('<table style="border-collapse:collapse;width:100%" cellpadding="6"><tr>')
+                html.extend(head.format(escape(column)) for column in columns)
+                html.append("</tr>")
+                for entry in obj["entries"]:
+                    when = _format_time(entry["when"], settings)
+                    text.append(" | ".join((when, entry["severity_label"], entry["user"] or "-", entry["text"])))
+                    text.extend(_detail_text(entry))
+                    cells = (escape(when), _badge(entry["severity"], entry["severity_label"]), escape(entry["user"] or "-"),
+                             escape(entry["text"]) + _detail_html(entry))
+                    html.append("<tr>" + "".join(cell.format(value) for value in cells) + "</tr>")
+                html.append("</table>")
+            text.append("")
+        html.append("</div>")
+        return subject, "\n".join(text), "".join(html)
+
+    columns = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("self.col_object", lang), tr("field.change", lang)]
     html.append('<table style="border-collapse:collapse;width:100%" cellpadding="6"><tr>')
-    html.extend(f'<th style="text-align:left;border-bottom:2px solid #dee2e6;background:#f8f9fa">{escape(column)}</th>' for column in columns)
+    html.extend(head.format(escape(column)) for column in columns)
     html.append("</tr>")
     for entry in report["entries"]:
         when = _format_time(entry["when"], settings)
         obj = f"{entry['object_type']}: {entry['object']}"
         text.append(" | ".join((when, entry["severity_label"], entry["user"] or "-", obj, entry["text"])))
-        detail = []
-        if entry["kind"] in ("list", "lines"):
-            for item in entry["added"]:
-                text.append(f"    + {item}")
-                detail.append(f'<div style="color:#198754;font-family:monospace;font-size:12px">+ {escape(item)}</div>')
-            for item in entry["removed"]:
-                text.append(f"    - {item}")
-                detail.append(f'<div style="color:#dc3545;font-family:monospace;font-size:12px">&minus; {escape(item)}</div>')
-        badge = (
-            f'<span style="color:#fff;background:{SEVERITY_COLOR[entry["severity"]]};padding:2px 6px;border-radius:4px">'
-            f'{escape(entry["severity_label"])}</span>'
-        )
-        cells = (escape(when), badge, escape(entry["user"] or "-"), escape(obj), escape(entry["text"]) + "".join(detail))
-        html.append("<tr>" + "".join(f'<td style="border-bottom:1px solid #dee2e6;vertical-align:top">{cell}</td>' for cell in cells) + "</tr>")
+        text.extend(_detail_text(entry))
+        cells = (escape(when), _badge(entry["severity"], entry["severity_label"]), escape(entry["user"] or "-"), escape(obj),
+                 escape(entry["text"]) + _detail_html(entry))
+        html.append("<tr>" + "".join(cell.format(value) for value in cells) + "</tr>")
     html.append("</table></div>")
     return subject, "\n".join(text), "".join(html)
 
 
-def html_document(settings, report: dict) -> str:
-    subject, _text, html = render_report(settings, report)
+def html_document(settings, report: dict, view: str | None = None) -> str:
+    subject, _text, html = render_report(settings, report, view)
     return (
         f'<!doctype html><html lang="{language_of(settings)}"><head><meta charset="utf-8">'
         f'<title>{escape(subject)}</title></head><body style="background:#fff;margin:24px">{html}</body></html>'
@@ -639,7 +752,7 @@ def html_document(settings, report: dict) -> str:
 def send_report(
     settings, since, until, label: str, to: list[str] | None = None, force: bool = False,
     attach_pdf: bool | None = None, pdf_password: str | None = None, types: list[str] | None = None,
-    min_severity: str | None = None,
+    min_severity: str | None = None, view: str | None = None,
 ) -> dict:
     """E-mail the NetBox Self audit. Returns {"sent", "total", "reason", "reason_en"}."""
     from django.core.mail import EmailMultiAlternatives
@@ -658,7 +771,7 @@ def send_report(
         attach_pdf = getattr(settings, "audit_email_attach_pdf", True)
     if pdf_password is None:
         pdf_password = getattr(settings, "audit_pdf_password", "") or ""
-    subject, text, html = render_report(settings, report)
+    subject, text, html = render_report(settings, report, view)
     header = (getattr(settings, "report_header", "") or "").strip()
     message = EmailMultiAlternatives(subject=f"{header}: {subject}" if header else subject, body=text, from_email=from_address(settings), to=to)
     message.attach_alternative(html, "text/html")
@@ -666,6 +779,6 @@ def send_report(
         from .pdf import build_pdf
 
         stamp = timezone.localtime().strftime("%Y-%m-%d")
-        message.attach(f"netbox-self-audit_{stamp}.pdf", build_pdf(settings, report, subject, pdf_password or None), "application/pdf")
+        message.attach(f"netbox-self-audit_{stamp}.pdf", build_pdf(settings, report, subject, pdf_password or None, view), "application/pdf")
     _deliver(settings, message)
     return {"sent": True, "total": report["total"], "reason": ""}

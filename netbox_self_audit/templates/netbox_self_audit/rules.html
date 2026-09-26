@@ -29,7 +29,13 @@
       </div>
       <div class="card-body">
         <div class="small text-muted mb-1">{% trf "self.placeholders" lang placeholders=placeholders %}</div>
-        <div class="small text-muted mb-3">{{ "self.long_hint"|tr:lang }}</div>
+        <div class="small text-muted mb-2">{{ "self.long_hint"|tr:lang }}</div>
+        <div class="d-flex flex-wrap gap-1 align-items-center mb-3">
+          <span class="small text-muted me-1">{{ "self.insert"|tr:lang }}:</span>
+          {% for name in placeholder_list %}
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 sa-ph" data-ph="{{ name }}">{{ "{" }}{{ name }}{{ "}" }}</button>
+          {% endfor %}
+        </div>
         <form method="post" id="sa-rules-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="rules">
@@ -61,7 +67,20 @@
                           {% endfor %}
                         </select>
                       </td>
-                      <td><input class="form-control form-control-sm" type="text" name="msg__{{ row.field }}" value="{{ row.message }}" placeholder="{{ row.default }}"></td>
+                      <td>
+                        <div class="input-group input-group-sm">
+                          <input class="form-control form-control-sm sa-msg" type="text" name="msg__{{ row.field }}" value="{{ row.message }}" placeholder="{{ row.default }}" data-field="{{ row.label }}">
+                          <select class="form-select form-select-sm sa-preset" style="max-width:9rem" aria-label="{{ "self.template"|tr:lang }}">
+                            <option value="">{{ "self.template"|tr:lang }} ▾</option>
+                            {% for group, items in row.presets %}
+                              <optgroup label="{{ group }}">
+                                {% for item in items %}<option value="{{ item }}">{{ item }}</option>{% endfor %}
+                              </optgroup>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="small text-muted mt-1 sa-preview"></div>
+                      </td>
                     </tr>
                   {% endif %}
                 {% endfor %}
@@ -167,6 +186,49 @@
         const on = link.dataset.saCheck === '1';
         document.querySelectorAll('.sa-watch').forEach((box) => { box.checked = on; });
         dirty = true;
+      });
+    });
+    const samples = {{ samples|safe }};
+    const previewLabel = {{ preview_label|safe }};
+    const render = (template, field) => template.replace(/\{(\w+)\}/g, (match, key) => {
+      if (key === 'field') return field;
+      return Object.prototype.hasOwnProperty.call(samples, key) ? samples[key] : match;
+    });
+    const updatePreview = (input) => {
+      const preview = input.closest('td').querySelector('.sa-preview');
+      const template = input.value.trim() || input.placeholder;
+      preview.textContent = previewLabel + ': ' + render(template, input.dataset.field);
+    };
+    let lastInput = null;
+    document.querySelectorAll('.sa-msg').forEach((input) => {
+      input.addEventListener('focus', () => { lastInput = input; });
+      input.addEventListener('input', () => updatePreview(input));
+      updatePreview(input);
+    });
+    document.querySelectorAll('.sa-preset').forEach((select) => {
+      select.addEventListener('change', () => {
+        if (!select.value) return;
+        const input = select.closest('td').querySelector('.sa-msg');
+        input.value = select.value;
+        select.value = '';
+        dirty = true;
+        updatePreview(input);
+        lastInput = input;
+      });
+    });
+    document.querySelectorAll('.sa-ph').forEach((button) => {
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+      button.addEventListener('click', () => {
+        const input = lastInput || document.querySelector('.sa-msg');
+        if (!input) return;
+        const text = '{' + button.dataset.ph + '}';
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? input.value.length;
+        input.value = input.value.slice(0, start) + text + input.value.slice(end);
+        input.focus();
+        input.setSelectionRange(start + text.length, start + text.length);
+        dirty = true;
+        updatePreview(input);
       });
     });
     const back = document.getElementById('sa-back');

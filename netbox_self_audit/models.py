@@ -9,6 +9,7 @@ class SelfAuditSettings(models.Model):
     datetime_format = models.CharField(max_length=32, default="%d.%m.%Y %H:%M:%S")
     min_severity = models.CharField(max_length=16, default="low")
     default_period = models.CharField(max_length=16, default="today")
+    group_by = models.CharField(max_length=16, default="object")
     report_header = models.CharField(max_length=200, blank=True, default="")
     track_system = models.BooleanField(default=True)
     severity_netbox = models.CharField(max_length=16, default="high")

@@ -84,6 +84,7 @@ def rules_view(request):
                     "severity": rule.severity if rule else ("high" if kind == "event" else "medium"),
                     "message": rule.message if rule else "",
                     "default": tr(rules.default_message(field), lang),
+                    "presets": rules.presets(field, lang),
                 })
     elif selected:
         selected = ""
@@ -126,6 +127,14 @@ def rules_view(request):
         "ask_save": mark_safe(json.dumps(tr("self.ask_save", lang))),
         "ask_discard": mark_safe(json.dumps(tr("self.ask_discard", lang))),
         "overview_url": here,
+        "samples": mark_safe(json.dumps({
+            "user": "admin", "object": "XXXX", "object_type": rules.type_label(selected) if selected else "",
+            "old": tr("self.sample_old", lang), "new": tr("self.sample_new", lang), "added": "PC4, PC5", "removed": "PC2",
+            "changes": tr("self.chg_value", lang, old=tr("self.sample_old", lang), new=tr("self.sample_new", lang)),
+            "action": "update",
+        }, ensure_ascii=False)),
+        "placeholder_list": list(rules.PLACEHOLDERS),
+        "preview_label": mark_safe(json.dumps(tr("self.preview", lang))),
     })
 
 
@@ -200,6 +209,7 @@ def audit_view(request):
     min_severity = request.GET.get("severity") or settings.min_severity
     if min_severity not in SEVERITY_RANK:
         min_severity = "low"
+    view = rules.view_of(settings, request.GET.get("view"))
     back = f"{request.path}?{request.GET.urlencode()}"
 
     if request.method == "POST" and request.POST.get("action") == "send_email":
@@ -215,7 +225,7 @@ def audit_view(request):
         try:
             result = rules.send_report(
                 settings, since, until, label, to=to, force=True, attach_pdf=attach_pdf, pdf_password=password,
-                types=types or None, min_severity=min_severity,
+                types=types or None, min_severity=min_severity, view=view,
             )
             if result["sent"]:
                 messages.success(request, tr("self.sent", lang, period=label, recipients=", ".join(to)))
@@ -245,12 +255,13 @@ def audit_view(request):
         "recipient_list": mail.recipients(settings),
         "pdf_password_set": bool(settings.audit_pdf_password),
         "default_attach_pdf": settings.audit_email_attach_pdf,
+        "view": view,
     }
     if not context["generated"]:
         return render(request, "netbox_self_audit/audit.html", context)
 
     report = rules.build_report(settings, since, until, label, types or None, min_severity)
-    subject, _text, _html = rules.render_report(settings, report)
+    subject, _text, _html = rules.render_report(settings, report, view)
     for entry in report["entries"]:
         entry["when_display"] = format_time(entry["when"], settings)
     export = request.GET.get("export")
@@ -258,15 +269,21 @@ def audit_view(request):
     if export == "pdf":
         from .pdf import build_pdf
 
-        response = HttpResponse(build_pdf(settings, report, subject), content_type="application/pdf")
+        response = HttpResponse(build_pdf(settings, report, subject, view=view), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="netbox-self-audit_{stamp}.pdf"'
         return response
     if export == "html":
-        response = HttpResponse(rules.html_document(settings, report), content_type="text/html; charset=utf-8")
+        response = HttpResponse(rules.html_document(settings, report, view), content_type="text/html; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="netbox-self-audit_{stamp}.html"'
         return response
 
-    context.update({"report": report, "subject": subject, "query": request.GET.urlencode()})
+    query = request.GET.copy()
+    query.pop("view", None)
+    query.pop("export", None)
+    context.update({
+        "report": report, "subject": subject, "query": request.GET.urlencode(), "base_query": query.urlencode(),
+        "tree": rules.group_tree(report["entries"]) if view == "object" else [],
+    })
     return render(request, "netbox_self_audit/audit.html", context)
 
 
