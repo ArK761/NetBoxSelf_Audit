@@ -407,6 +407,11 @@ def check_system(settings, now: datetime | None = None) -> int:
     return len(events)
 
 
+def _system_severity(settings, kind: str) -> str:
+    severity = getattr(settings, f"severity_{kind}", "") or "critical"
+    return severity if severity in SEVERITY_RANK else "critical"
+
+
 def _system_text(event, lang: str) -> str:
     if event.kind in ("plugin_added", "plugin_removed"):
         version = event.new if event.kind == "plugin_added" else event.old
@@ -533,7 +538,7 @@ def collect(settings, since, until, types: list[str] | None = None) -> list[dict
         for event in events:
             entries.append({
                 "when": event.time, "user": "", "object": event.name, "object_type": "NetBox", "object_type_key": "netbox.system",
-                "object_url": "", "changelog_url": "", "action": "system", "severity": "critical", "field": event.kind,
+                "object_url": "", "changelog_url": "", "action": "system", "severity": _system_severity(settings, event.kind), "field": event.kind,
                 "field_label": "", "kind": "event", "old": event.old, "new": event.new, "added": [], "removed": [],
                 "text": _system_text(event, lang),
             })
