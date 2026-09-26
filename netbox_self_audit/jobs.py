@@ -13,6 +13,18 @@ logger = logging.getLogger("netbox.plugins.netbox_self_audit")
 STALE_AFTER_MINUTES = 10
 
 
+class SelfAuditEchoJob(JobRunner):
+    """Manual "check now": netbox-rq answers by writing the time; the Audit page waits for it."""
+
+    class Meta:
+        name = "NetBoxSelf Audit echo"
+
+    def run(self, *args, **kwargs):
+        settings = SelfAuditSettings.load()
+        settings.echo_reply = timezone.now()
+        settings.save(update_fields=["echo_reply"])
+
+
 @system_job(interval=1)
 class SelfAuditJob(JobRunner):
     """Every minute: record NetBox version / plugin changes and send the scheduled audit e-mail."""

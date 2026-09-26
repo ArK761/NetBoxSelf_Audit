@@ -118,7 +118,7 @@ first run only stores the current state.
 ### Monitoring (heartbeat)
 
 The background check (NetBox background worker `netbox-rq`) reports every minute. If it has not run for longer than
-the set time (Settings, default 10 minutes):
+the set time (Settings: 5 or 10 minutes, default 10):
 
 - all plugin pages show a red warning;
 - `http://<netbox>/plugins/self-audit/health/` returns HTTP **503** with `ERROR` and the reason, otherwise HTTP
@@ -126,6 +126,11 @@ the set time (Settings, default 10 minutes):
 
 Add it to LibreNMS as an HTTP service (Services → Add service → type `http`, parameters e.g.
 `-u /plugins/self-audit/health/ -s OK`) or to any other monitoring. Monitoring can be switched off in Settings.
+The address itself can be switched off in Settings (then it returns 404). The limit is 5 or 10 minutes: the check
+runs every minute but not to the second, so a shorter limit would give false alarms.
+
+**Check now:** the button on the Audit page sends a test job to `netbox-rq` and waits up to 15 seconds for the
+answer – it shows at once whether the background worker is running.
 
 If a background run is interrupted (e.g. `netbox-rq` restarted while it was running), it is cleared automatically
 when `netbox-rq` starts, so the schedule does not stay blocked.

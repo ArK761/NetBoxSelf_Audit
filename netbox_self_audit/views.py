@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from urllib.parse import quote
 
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -11,7 +11,7 @@ from django.utils.safestring import mark_safe
 
 from . import mail, rules
 from .common import SEVERITY_RANK, date_format, format_time, seconds, severities, severity_label
-from .health import heartbeat_status
+from .health import ECHO_TIMEOUT, check_worker_now, heartbeat_status
 from .forms import PERIOD_KEYS, EmailForm, SettingsForm
 from .i18n import language_of, tr
 from .models import SelfAuditRule, SelfAuditSettings
@@ -29,8 +29,14 @@ def _render(request, template, context):
 
 
 def health_view(request):
-    """Plain-text status for monitoring (e.g. LibreNMS HTTP service): 200 "OK" or 503 "ERROR". No login needed."""
-    ok, message = heartbeat_status(SelfAuditSettings.load())
+    """Plain-text status for monitoring (e.g. LibreNMS HTTP service): 200 "OK" or 503 "ERROR". No login needed.
+
+    Can be switched off in Settings; then the address does not exist (404).
+    """
+    settings = SelfAuditSettings.load()
+    if not settings.health_endpoint_enabled or not settings.watchdog_enabled:
+        raise Http404
+    ok, message = heartbeat_status(settings)
     response = HttpResponse(("OK" if ok else "ERROR") + "\n" + message + "\n", content_type="text/plain; charset=utf-8", status=200 if ok else 503)
     response["Cache-Control"] = "no-store"
     return response
@@ -227,6 +233,20 @@ def audit_view(request):
         min_severity = "low"
     view = rules.view_of(settings, request.GET.get("view"))
     back = f"{request.path}?{request.GET.urlencode()}"
+
+    if request.method == "POST" and request.POST.get("action") == "check_worker":
+        try:
+            answered, took = check_worker_now(settings, user=request.user)
+        except Exception as exc:
+            messages.error(request, tr("check.failed", lang, error=exc))
+            return redirect(back)
+        settings.refresh_from_db()
+        _ok, last = heartbeat_status(settings)
+        if answered:
+            messages.success(request, tr("check.ok", lang, time=seconds(took, lang)) + " " + last)
+        else:
+            messages.error(request, tr("check.no_answer", lang, seconds=ECHO_TIMEOUT) + " " + last)
+        return redirect(back)
 
     if request.method == "POST" and request.POST.get("action") == "send_email":
         delivery = "body" if request.POST.get("delivery") == "body" else "pdf"

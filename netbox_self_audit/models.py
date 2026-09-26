@@ -42,6 +42,8 @@ class SelfAuditSettings(models.Model):
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     watchdog_enabled = models.BooleanField(default=True)
     watchdog_minutes = models.PositiveSmallIntegerField(default=10)
+    health_endpoint_enabled = models.BooleanField(default=True)
+    echo_reply = models.DateTimeField(null=True, blank=True)  # answer of the manual "check now" job
     # NetBox version and plugins seen at the last check
     system_snapshot = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
