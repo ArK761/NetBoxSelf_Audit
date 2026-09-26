@@ -35,10 +35,10 @@ log_item = _item("log", "menu.log", "mdi mdi-history", "red")
 settings_item = _item("settings", "menu.settings", "mdi mdi-cog-outline", "green")
 email_item = _item("email", "menu.email", "mdi mdi-email-outline", "cyan")
 
-menu_items = (audit_item, rules_item, log_item, settings_item, email_item)
-
+# Only an own top-level menu. NetBox also reads a module-level "menu_items" and would list the same
+# items a second time under "Plugins", so that name must not be defined here.
 menu = PluginMenu(
     label="NetBoxSelf Audit",
-    groups=(("NetBoxSelf Audit", menu_items),),
+    groups=(("NetBoxSelf Audit", (audit_item, rules_item, log_item, settings_item, email_item)),),
     icon_class="mdi mdi-shield-search",
 )
