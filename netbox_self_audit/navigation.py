@@ -1,6 +1,6 @@
 from django.utils.functional import lazy
 
-from netbox.plugins import PluginMenu, PluginMenuItem
+from netbox.plugins import PluginMenu, PluginMenuButton, PluginMenuItem
 
 
 def _menu_label(key: str) -> str:
@@ -18,15 +18,27 @@ def _menu_label(key: str) -> str:
 
 menu_label = lazy(_menu_label, str)
 
-audit_item = PluginMenuItem(link="plugins:netbox_self_audit:audit", link_text=menu_label("menu.audit"))
-rules_item = PluginMenuItem(link="plugins:netbox_self_audit:rules", link_text=menu_label("menu.rules"))
-settings_item = PluginMenuItem(link="plugins:netbox_self_audit:settings", link_text=menu_label("menu.settings"))
-email_item = PluginMenuItem(link="plugins:netbox_self_audit:email", link_text=menu_label("menu.email"))
+
+def _item(name: str, label: str, icon: str, color: str) -> PluginMenuItem:
+    """Menu item with a small coloured icon button (NetBox does not allow coloured menu text)."""
+    link = f"plugins:netbox_self_audit:{name}"
+    return PluginMenuItem(
+        link=link,
+        link_text=menu_label(label),
+        buttons=(PluginMenuButton(link=link, title=menu_label(label), icon_class=icon, color=color),),
+    )
+
+
+audit_item = _item("audit", "menu.audit", "mdi mdi-file-search-outline", "blue")
+rules_item = _item("rules", "menu.rules", "mdi mdi-eye-outline", "orange")
+log_item = _item("log", "menu.log", "mdi mdi-history", "red")
+settings_item = _item("settings", "menu.settings", "mdi mdi-cog-outline", "green")
+email_item = _item("email", "menu.email", "mdi mdi-email-outline", "cyan")
+
+menu_items = (audit_item, rules_item, log_item, settings_item, email_item)
 
 menu = PluginMenu(
     label="NetBoxSelf Audit",
-    groups=(("NetBoxSelf Audit", (audit_item, rules_item, settings_item, email_item)),),
+    groups=(("NetBoxSelf Audit", menu_items),),
     icon_class="mdi mdi-shield-search",
 )
-
-menu_items = (audit_item, rules_item, settings_item, email_item)
