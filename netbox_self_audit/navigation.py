@@ -25,15 +25,21 @@ def _menu_label(key: str, icon: str, color: str) -> SafeString:
 menu_label = lazy(_menu_label, SafeString)
 
 
-def _item(name: str, label: str, icon: str, color: str) -> PluginMenuItem:
-    return PluginMenuItem(link=f"plugins:netbox_self_audit:{name}", link_text=menu_label(label, icon, color))
+VIEW_PERM = "core.view_objectchange"
+MANAGE_PERM = "netbox_self_audit.change_selfauditsettings"
 
 
-audit_item = _item("audit", "menu.audit", "mdi mdi-file-search-outline", "blue")
-rules_item = _item("rules", "menu.rules", "mdi mdi-eye-outline", "orange")
-log_item = _item("log", "menu.log", "mdi mdi-history", "red")
-settings_item = _item("settings", "menu.settings", "mdi mdi-cog-outline", "green")
-email_item = _item("email", "menu.email", "mdi mdi-email-outline", "cyan")
+def _item(name: str, label: str, icon: str, color: str, perm: str) -> PluginMenuItem:
+    return PluginMenuItem(
+        link=f"plugins:netbox_self_audit:{name}", link_text=menu_label(label, icon, color), permissions=[perm],
+    )
+
+
+audit_item = _item("audit", "menu.audit", "mdi mdi-file-search-outline", "blue", VIEW_PERM)
+rules_item = _item("rules", "menu.rules", "mdi mdi-eye-outline", "orange", MANAGE_PERM)
+log_item = _item("log", "menu.log", "mdi mdi-history", "red", MANAGE_PERM)
+settings_item = _item("settings", "menu.settings", "mdi mdi-cog-outline", "green", MANAGE_PERM)
+email_item = _item("email", "menu.email", "mdi mdi-email-outline", "cyan", MANAGE_PERM)
 
 # Only an own top-level menu. NetBox also reads a module-level "menu_items" and would list the same
 # items a second time under "Plugins", so that name must not be defined here.
