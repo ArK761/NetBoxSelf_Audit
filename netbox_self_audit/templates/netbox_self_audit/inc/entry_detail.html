@@ -1,0 +1,7 @@
+{% load self_audit_tags %}
+{% for label, value in entry.fields %}<div class="small text-muted">{{ label }}: <strong>{{ value }}</strong></div>{% endfor %}
+{% if entry.kind == "list" or entry.kind == "lines" %}
+  {% for item in entry.added %}<div class="font-monospace small text-success">+ {{ item }}</div>{% endfor %}
+  {% for item in entry.removed %}<div class="font-monospace small text-danger">&minus; {{ item }}</div>{% endfor %}
+{% endif %}
+{% if entry.changelog_url %}<div class="small"><a href="{{ entry.changelog_url }}">{{ "self.changelog"|tr:lang }}</a></div>{% endif %}

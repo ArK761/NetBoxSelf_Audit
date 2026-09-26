@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.4
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.5
 ```
 
 Enable the plugin in `configuration.py`:
@@ -37,6 +37,8 @@ systemctl restart netbox netbox-rq
   *Object created* and *Object deleted* can be watched too. Nothing is watched until you choose it.
 - Log message placeholders: `{user}`, `{object}`, `{object_type}`, `{field}`, `{old}`, `{new}`, `{added}`,
   `{removed}`, `{changes}`, `{action}`. An empty message uses the default text in the selected language.
+  Ready-made templates can be picked next to each message, placeholder buttons insert at the cursor and a preview
+  shows the resulting text.
 - An overview shows all watched object types as green buttons (click to edit) with their fields; **Delete** removes all watched fields of an object type. The editing screen has a Back button that asks whether to save unsaved changes.
 
 ### Settings (NetBoxSelf Audit → Settings)
@@ -51,7 +53,13 @@ systemctl restart netbox netbox-rq
 
 - Period: today, yesterday, a chosen day, date range, last 7 days, all.
 - Filter by object types and minimum severity.
-- Table (newest first, also in the PDF and e-mail): time, severity, user, object (link to the object), the change and a link to the NetBox changelog entry.
+- Two views (default chosen in Settings, also used for the PDF and the automatic e-mail):
+  - **By object** (tree): object type → object → its changes (oldest first), with the highest severity of each branch;
+    expand / collapse all; deleted objects are marked.
+  - **By time**: one table, newest first.
+- Each change shows time, severity, user, the change and a link to the NetBox changelog entry.
+- **Object created**: all filled fields of the new object are listed, watched or not. **Object deleted**: only the
+  information that it was deleted. **Changes**: only watched fields.
 - Lists (e.g. a multi-object custom field with 10 PCs, tags) and multi-line text show only the added (+) and
   removed (−) items / lines.
 - Download as PDF or HTML, or send by e-mail (recipients chosen in a dialog, optional PDF attachment,

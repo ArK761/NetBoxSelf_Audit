@@ -190,6 +190,7 @@ class SettingsForm(forms.ModelForm):
     datetime_format = forms.ChoiceField(choices=DATETIME_FORMAT_CHOICES)
     min_severity = forms.ChoiceField(choices=severities())
     default_period = forms.ChoiceField(choices=())
+    group_by = forms.ChoiceField(choices=())
     report_header = forms.CharField(required=False, max_length=200)
     track_system = forms.BooleanField(required=False)
     severity_netbox = forms.ChoiceField(choices=severities())
@@ -202,7 +203,7 @@ class SettingsForm(forms.ModelForm):
     class Meta:
         model = SelfAuditSettings
         fields = (
-            "language", "datetime_format", "min_severity", "default_period", "report_header", "track_system",
+            "language", "datetime_format", "min_severity", "default_period", "group_by", "report_header", "track_system",
             "severity_netbox", "severity_plugin_added", "severity_plugin_removed", "severity_plugin_version",
         )
 
@@ -211,6 +212,7 @@ class SettingsForm(forms.ModelForm):
         "datetime_format": ("form.datetime_format", None),
         "min_severity": ("form.min_severity", "form.min_severity_help"),
         "default_period": ("form.default_period", None),
+        "group_by": ("form.group_by", "form.group_by_help"),
         "report_header": ("form.report_header", "form.report_header_help"),
         "track_system": ("form.track_system", "form.track_system_help"),
         "severity_netbox": ("form.sev_netbox", None),
@@ -229,6 +231,7 @@ class SettingsForm(forms.ModelForm):
         for name in self.SYSTEM_SEVERITIES:
             self.fields[name].choices = severities(lang)
         self.fields["default_period"].choices = [(key, tr(f"ui.{key}", lang)) for key in PERIOD_KEYS]
+        self.fields["group_by"].choices = [("object", tr("self.view_object", lang)), ("time", tr("self.view_time", lang))]
         self.fields["report_header"].widget.attrs["placeholder"] = tr("form.report_header_placeholder", lang)
         for field in self.fields.values():
             widget = field.widget

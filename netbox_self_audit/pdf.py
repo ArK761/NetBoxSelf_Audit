@@ -31,8 +31,10 @@ def _encryption(password: str):
     return StandardEncryption(password, canPrint=1, canModify=0, canCopy=1, canAnnotate=0, strength=128)
 
 
-def build_pdf(settings, report: dict, subject: str, password: str | None = None) -> bytes:
-    """Render the NetBoxSelf Audit as PDF; with a password the PDF is encrypted (128-bit, printing allowed)."""
+def build_pdf(settings, report: dict, subject: str, password: str | None = None, view: str | None = None) -> bytes:
+    """Render the NetBoxSelf Audit as PDF (grouped by object or listed by time); a password encrypts it (128-bit, printing allowed)."""
+    from .rules import group_tree, view_of
+
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4, landscape
@@ -60,39 +62,61 @@ def build_pdf(settings, report: dict, subject: str, password: str | None = None)
         Paragraph(escape(subject), header),
         Spacer(1, 2 * mm),
     ]
-    if not report["entries"]:
-        story.append(Paragraph(escape(tr("self.no_changes", lang)), base))
-    else:
-        page_width = landscape(A4)[0] - 24 * mm
-        widths = [32 * mm, 26 * mm, 30 * mm, 56 * mm]
+    group_title = ParagraphStyle("group", parent=base, fontName=FONT_BOLD, fontSize=12, leading=15, spaceBefore=8, spaceAfter=2)
+    object_title = ParagraphStyle("object", parent=base, fontName=FONT_BOLD, fontSize=10, leading=13, spaceBefore=5, spaceAfter=2)
+    table_style = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9ecef")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#dee2e6")),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]
+    page_width = landscape(A4)[0] - 24 * mm
+
+    def change_cell(entry):
+        change = escape(entry["text"])
+        change += "".join(f'<br/><font color="#495057">{escape(label)}: <b>{escape(value)}</b></font>' for label, value in entry.get("fields", []))
+        if entry["kind"] in ("list", "lines"):
+            change += "".join(f'<br/><font color="#198754">+ {escape(item)}</font>' for item in entry["added"])
+            change += "".join(f'<br/><font color="#dc3545">− {escape(item)}</font>' for item in entry["removed"])
+        return Paragraph(change, base)
+
+    def table(entries, with_object):
+        labels = [tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang)]
+        widths = [32 * mm, 26 * mm, 30 * mm]
+        if with_object:
+            labels.append(tr("self.col_object", lang))
+            widths.append(56 * mm)
+        labels.append(tr("field.change", lang))
         widths.append(page_width - sum(widths))
-        rows = [[
-            Paragraph(escape(label), header)
-            for label in (tr("field.time", lang), tr("field.severity", lang), tr("self.col_user", lang), tr("self.col_object", lang), tr("field.change", lang))
-        ]]
-        styles = [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e9ecef")),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#dee2e6")),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]
-        for index, entry in enumerate(report["entries"], start=1):
-            change = escape(entry["text"])
-            if entry["kind"] in ("list", "lines"):
-                change += "".join(f'<br/><font color="#198754">+ {escape(item)}</font>' for item in entry["added"])
-                change += "".join(f'<br/><font color="#dc3545">− {escape(item)}</font>' for item in entry["removed"])
-            rows.append([
+        rows = [[Paragraph(escape(label), header) for label in labels]]
+        styles = list(table_style)
+        for index, entry in enumerate(entries, start=1):
+            row = [
                 Paragraph(escape(_format_time(entry["when"], settings)), base),
                 Paragraph(escape(entry["severity_label"]), badge),
                 Paragraph(escape(entry["user"] or "-"), base),
-                Paragraph(escape(f"{entry['object_type']}: {entry['object']}"), base),
-                Paragraph(change, base),
-            ])
+            ]
+            if with_object:
+                row.append(Paragraph(escape(f"{entry['object_type']}: {entry['object']}"), base))
+            row.append(change_cell(entry))
+            rows.append(row)
             styles.append(("BACKGROUND", (1, index), (1, index), colors.HexColor(SEVERITY_COLOR[entry["severity"]])))
-        table = Table(rows, colWidths=widths, repeatRows=1)
-        table.setStyle(TableStyle(styles))
-        story.append(table)
+        result = Table(rows, colWidths=widths, repeatRows=1)
+        result.setStyle(TableStyle(styles))
+        return result
+
+    if not report["entries"]:
+        story.append(Paragraph(escape(tr("self.no_changes", lang)), base))
+    elif view_of(settings, view) == "object":
+        for group in group_tree(report["entries"]):
+            story.append(Paragraph(escape(f"{group['label']} ({tr('self.tree_changes', lang, count=group['count'])})"), group_title))
+            for obj in group["objects"]:
+                name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
+                story.append(Paragraph(escape(name), object_title))
+                story.append(table(obj["entries"], with_object=False))
+    else:
+        story.append(table(report["entries"], with_object=True))
 
     def footer(canvas, doc):
         canvas.saveState()

@@ -12,6 +12,7 @@
   </div>
   <div class="card-body">
     <form method="get" id="sa-self-audit-form">
+      <input type="hidden" name="view" value="{{ view }}">
       <div class="row g-3 align-items-end">
         <div class="col-12 col-md-3">
           <label class="form-label" for="sa-period">{{ "ui.period"|tr:lang }}</label>
@@ -82,6 +83,56 @@
   <div class="card-body">
     <div class="mb-2"><strong>{{ "ui.subject"|tr:lang }}:</strong> <code>{{ subject }}</code></div>
     {% if report.entries %}
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <div class="btn-group btn-group-sm" role="group">
+        <a class="btn {% if view == 'object' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?{{ base_query }}&view=object">{{ "self.view_object"|tr:lang }}</a>
+        <a class="btn {% if view == 'time' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?{{ base_query }}&view=time">{{ "self.view_time"|tr:lang }}</a>
+      </div>
+      {% if view == "object" %}
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-sa-tree="1">{{ "self.expand_all"|tr:lang }}</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-sa-tree="0">{{ "self.collapse_all"|tr:lang }}</button>
+      {% endif %}
+    </div>
+    {% if view == "object" %}
+      {% for group in tree %}
+      <details class="sa-tree-type mb-2" open>
+        <summary class="d-flex align-items-center gap-2">
+          <span class="fs-5 fw-bold">{{ group.label }}</span>
+          <span class="text-muted small">{% trf "self.tree_summary" lang objects=group.objects|length changes=group.count %}</span>
+          <span class="badge sa-sev-{{ group.severity }} ms-auto">{{ "severity."|add:group.severity|tr:lang }}</span>
+        </summary>
+        <div class="ms-4 mt-2">
+          {% for obj in group.objects %}
+          <details class="sa-tree-object mb-2" {% if obj.open %}open{% endif %}>
+            <summary class="d-flex align-items-center gap-2">
+              {% if obj.url %}<a href="{{ obj.url }}" class="fw-bold">{{ obj.name }}</a>{% else %}<span class="fw-bold">{{ obj.name }}</span>{% endif %}
+              {% if obj.deleted %}<span class="badge bg-secondary">{{ "self.deleted_mark"|tr:lang }}</span>{% endif %}
+              <span class="text-muted small">{% trf "self.tree_changes" lang count=obj.count %}</span>
+              <span class="badge sa-sev-{{ obj.severity }} ms-auto">{{ "severity."|add:obj.severity|tr:lang }}</span>
+            </summary>
+            <div class="table-responsive ms-3 mt-1">
+              <table class="table table-sm align-top mb-0">
+                <tbody>
+                  {% for entry in obj.entries %}
+                  <tr>
+                    <td class="text-nowrap" style="width:11rem">{{ entry.when_display }}</td>
+                    <td style="width:7rem"><span class="badge sa-sev-{{ entry.severity }}">{{ entry.severity_label }}</span></td>
+                    <td style="width:9rem">{{ entry.user|default:"-" }}</td>
+                    <td>
+                      {{ entry.text }}
+                      {% include "netbox_self_audit/inc/entry_detail.html" %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    {% else %}
     <div class="table-responsive">
       <table class="table table-sm align-top">
         <thead>
@@ -105,17 +156,14 @@
             </td>
             <td>
               {{ entry.text }}
-              {% if entry.kind == "list" or entry.kind == "lines" %}
-                {% for item in entry.added %}<div class="font-monospace small text-success">+ {{ item }}</div>{% endfor %}
-                {% for item in entry.removed %}<div class="font-monospace small text-danger">&minus; {{ item }}</div>{% endfor %}
-              {% endif %}
-              {% if entry.changelog_url %}<div class="small"><a href="{{ entry.changelog_url }}">{{ "self.changelog"|tr:lang }}</a></div>{% endif %}
+              {% include "netbox_self_audit/inc/entry_detail.html" %}
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% endif %}
     {% else %}
       <p class="text-muted mb-0">{{ "self.no_changes"|tr:lang }}</p>
     {% endif %}
@@ -160,6 +208,8 @@
 {% endif %}
 
 <style>
+  .sa-tree-type > summary, .sa-tree-object > summary { cursor: pointer; list-style-position: outside; }
+  .sa-tree-type { border-bottom: 1px solid var(--tblr-border-color, #dee2e6); padding-bottom: .25rem; }
   .sa-sev-low { background: #6c757d; color: #fff; }
   .sa-sev-medium { background: #d39e00; color: #fff; }
   .sa-sev-high { background: #fd7e14; color: #fff; }
@@ -167,6 +217,12 @@
 </style>
 <script>
   (() => {
+    document.querySelectorAll('[data-sa-tree]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const open = button.dataset.saTree === '1';
+        document.querySelectorAll('.sa-tree-type, .sa-tree-object').forEach((node) => { node.open = open; });
+      });
+    });
     const period = document.getElementById('sa-period');
     const update = () => {
       document.querySelectorAll('.sa-period-day').forEach((el) => { el.style.display = period.value === 'day' ? '' : 'none'; });

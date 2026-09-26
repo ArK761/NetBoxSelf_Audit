@@ -5,7 +5,7 @@ class NetBoxSelfAuditConfig(PluginConfig):
     name = "netbox_self_audit"
     verbose_name = "NetBoxSelf Audit"
     description = "Audit of changes made in NetBox itself: watched fields, severities, PDF and e-mail reports."
-    version = "1.0.4"
+    version = "1.0.5"
     base_url = "self-audit"
     min_version = "4.7.0"
     max_version = "4.7.99"
