@@ -9,7 +9,7 @@ Requires NetBox 4.7.
 ## Installation / upgrade
 
 ```bash
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.6
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.7
 ```
 
 Enable the plugin in `configuration.py`:
@@ -56,7 +56,7 @@ systemctl restart netbox netbox-rq
 - Filter by object types and minimum severity.
 - Two views (default chosen in Settings, also used for the PDF and the automatic e-mail):
   - **By object** (tree): object type → object → its changes (oldest first), with the highest severity of each branch
-    (in the PDF and e-mail each object is in its own frame);
+    (in the PDF and e-mail each object is in its own frame and is never split across two PDF pages, unless it is longer than a page);
     expand / collapse all; deleted objects are marked.
   - **By time**: one table, newest first.
 - Each change shows time, severity, user, the change and a link to the NetBox changelog entry.

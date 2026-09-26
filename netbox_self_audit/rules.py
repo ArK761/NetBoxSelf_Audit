@@ -709,7 +709,7 @@ def render_report(settings, report: dict, view: str | None = None) -> tuple[str,
             for obj in group["objects"]:
                 name = str(obj["name"]) + (f" ({tr('self.deleted_mark', lang)})" if obj["deleted"] else "")
                 text.append(f"-- {name}")
-                html.append('<div style="border:1px solid #adb5bd;border-radius:6px;margin:10px 0;overflow:hidden">')
+                html.append('<div style="border:1px solid #adb5bd;border-radius:6px;margin:10px 0;overflow:hidden;page-break-inside:avoid;break-inside:avoid">')
                 html.append(f'<div style="background:#f1f3f5;border-bottom:1px solid #adb5bd;padding:6px 10px;font-weight:bold">{escape(name)}</div>')
                 html.append('<div style="padding:6px 10px">')
                 html.append('<table style="border-collapse:collapse;width:100%" cellpadding="6"><tr>')
