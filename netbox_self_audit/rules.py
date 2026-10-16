@@ -23,8 +23,12 @@ DELETE = "__delete__"
 EVENTS = (CREATE, DELETE)
 
 # Apps whose object types can be watched.
-WATCH_APPS = ("dcim", "ipam", "tenancy", "virtualization", "circuits", "wireless", "vpn", "extras")
+WATCH_APPS = ("dcim", "ipam", "tenancy", "virtualization", "circuits", "wireless", "vpn", "extras", "users")
+# Object types without NetBox change logging whose changes the plugin records itself (see userlog.py).
+PLUGIN_LOGGED_TYPES = {"users": ("users.user",)}
 SKIP_FIELDS = {"id", "created", "last_updated", "custom_field_data"}
+# Fields never offered for watching: secrets and values that change on every login.
+SKIP_TYPE_FIELDS = {"users.user": {"password", "last_login", "user_permissions"}}
 MAX_CHANGES = 20000  # safety limit for very long periods
 
 
@@ -68,7 +72,8 @@ def watchable_types() -> list[tuple[str, list[tuple[str, str]]]]:
             continue
         models = [
             model for model in config.get_models()
-            if not model._meta.auto_created and not model._meta.proxy and hasattr(model, "to_objectchange")
+            if not model._meta.auto_created and not model._meta.proxy
+            and (hasattr(model, "to_objectchange") or type_key(model) in PLUGIN_LOGGED_TYPES.get(app_label, ()))
         ]
         if not models:
             continue
@@ -144,7 +149,7 @@ def field_sections(key: str, lang: str = "en") -> list[tuple[str, list[tuple[str
         if not (getattr(field, "concrete", False) or getattr(field, "many_to_many", False)):
             continue
         name = field.name
-        if name in SKIP_FIELDS or name.startswith("_") or name in model_fields:
+        if name in SKIP_FIELDS or name in SKIP_TYPE_FIELDS.get(key, ()) or name.startswith("_") or name in model_fields:
             continue
         model_fields[name] = _label(getattr(field, "verbose_name", name))
     if hasattr(model, "tags") and "tags" not in model_fields:

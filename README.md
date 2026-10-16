@@ -11,6 +11,9 @@ Requires NetBox 4.7.
 - Watched fields per NetBox object type (incl. custom fields), severity and log message per field
 - Audit by object (tree) or by time, PDF / HTML export, e-mail (in the body or as PDF), scheduled e-mail
 - NetBox version and plugin changes recorded automatically
+- **Users** (incl. administrators) can be watched too: NetBox does not change-log users, so the plugin records
+  creation, deletion and changes of the user fields (name, e-mail, active, superuser, groups, permissions) itself,
+  from its installation on. Passwords and last login are never recorded.
 - **Internal self-check:** the background check reports every minute (heartbeat); when it has not run for 5 or
   10 minutes (Settings), the plugin pages show a warning and `/plugins/self-audit/health/` returns `ERROR`
   (HTTP 503) instead of `OK` – ready for LibreNMS or any other monitoring; the address can be switched off in
@@ -28,7 +31,7 @@ Requires NetBox 4.7.
 
 ```bash
 source /opt/netbox/venv/bin/activate
-pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+pip install --upgrade --force-reinstall git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
 ```
 
 2. **Required:** enable the plugin in `/opt/netbox/netbox/netbox/configuration.py` (add it to the existing list):
@@ -45,7 +48,7 @@ PLUGINS = [
    `configuration.py` but no longer installed):
 
 ```
-netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.0
+netbox-self-audit @ git+https://github.com/ArK761/NetBoxSelf_Audit.git@1.0.1
 ```
 
 The plugin is not on PyPI, so the line must contain the GitHub address, not only the name.

@@ -5,7 +5,7 @@ class NetBoxSelfAuditConfig(PluginConfig):
     name = "netbox_self_audit"
     verbose_name = "NetBoxSelf Audit"
     description = "Audit of changes made in NetBox itself: watched fields, severities, PDF and e-mail reports."
-    version = "1.0.0"
+    version = "1.0.1"
     base_url = "self-audit"
     min_version = "4.7.0"
     max_version = "4.7.99"
@@ -13,7 +13,9 @@ class NetBoxSelfAuditConfig(PluginConfig):
 
     def ready(self):
         super().ready()
-        from . import jobs  # noqa: F401
+        from . import jobs, userlog  # noqa: F401
+
+        userlog.connect()
 
 
 config = NetBoxSelfAuditConfig

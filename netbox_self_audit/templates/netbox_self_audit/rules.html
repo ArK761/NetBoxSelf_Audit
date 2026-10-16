@@ -31,6 +31,7 @@
       <div class="card-body">
         <div class="small text-muted mb-1">{% trf "self.placeholders" lang placeholders=placeholders %}</div>
         <div class="small text-muted mb-2">{{ "self.long_hint"|tr:lang }}</div>
+        {% if selected == "users.user" %}<div class="small text-warning mb-2">{{ "self.users_hint"|tr:lang }}</div>{% endif %}
         <div class="d-flex flex-wrap gap-1 align-items-center mb-3">
           <span class="small text-muted me-1">{{ "self.insert"|tr:lang }}:</span>
           {% for name in placeholder_list %}
